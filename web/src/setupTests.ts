@@ -6,6 +6,8 @@ import { clearDataCache } from './loadData';
 afterEach(() => {
   cleanup();
   clearDataCache();
+  // the mode is shown in the URL hash; a test must not leave it behind for the next one
+  window.history.replaceState(null, '', '/');
 });
 
 // Most tests were written around a fixed calendar (dive #1 on 3 November 2026). They run against that date, whatever the

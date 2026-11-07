@@ -73,3 +73,57 @@ describe('browserStorage', () => {
     expect(browserStorage()).not.toBeNull();
   });
 });
+
+describe('migrating the old Deep Cut keys', () => {
+  const old = { history: 'deepcut.v1', progress: 'deepcut.v1.progress', sound: 'deepcut.sound' };
+  const seed = (store: ReturnType<typeof memory>): History => {
+    const history: History = { 1: dive(true), 2: dive(false) };
+    store.data.set(old.history, JSON.stringify(history));
+    return history;
+  };
+
+  it('copies the history to the rare history, the sound setting, and the saved dive (played the rare way)', async () => {
+    const { migrateLegacy } = await import('./storage');
+    const store = memory();
+    const history = seed(store);
+    store.data.set(old.sound, 'on');
+    store.data.set(old.progress, JSON.stringify({ number: 3, mode: 'daily', promptIds: ['a', 'b', 'c', 'd', 'e', 'f', 'g'], results: [], startedAt: null }));
+    migrateLegacy(store);
+    expect(loadHistory(store, 'nylon:history:rare')).toEqual(history);
+    expect(store.data.get('nylon:history:common')).toBeUndefined();
+    expect(store.data.get('nylon:sound')).toBe('on');
+    expect(JSON.parse(store.data.get('nylon:progress') as string)).toMatchObject({ number: 3, gameMode: 'rare' });
+  });
+
+  it('leaves the old keys in place and never overwrites a new value', async () => {
+    const { migrateLegacy } = await import('./storage');
+    const store = memory();
+    seed(store);
+    store.data.set('nylon:history:rare', JSON.stringify({ 5: dive(true) }));
+    const before = store.data.get(old.history);
+    migrateLegacy(store);
+    expect(Object.keys(loadHistory(store, 'nylon:history:rare'))).toEqual(['5']);
+    expect(store.data.get(old.history)).toBe(before);
+  });
+
+  it('keeps the preview data apart, and does nothing with no storage or a storage that refuses', async () => {
+    const { migrateLegacy } = await import('./storage');
+    const store = memory();
+    store.data.set('deepcut.preview.v1', JSON.stringify({ 1: dive(true) }));
+    migrateLegacy(store, true);
+    expect(Object.keys(loadHistory(store, 'nylon:preview:history:rare'))).toEqual(['1']);
+    expect(store.data.get('nylon:history:rare')).toBeUndefined();
+    expect(() => migrateLegacy(null)).not.toThrow();
+    const broken: StorageLike = { getItem: () => { throw new Error('SecurityError'); }, setItem: () => { throw new Error('QuotaExceededError'); } };
+    expect(() => migrateLegacy(broken)).not.toThrow();
+  });
+
+  it('is safe to run twice', async () => {
+    const { migrateLegacy } = await import('./storage');
+    const store = memory();
+    const history = seed(store);
+    migrateLegacy(store);
+    migrateLegacy(store);
+    expect(loadHistory(store, 'nylon:history:rare')).toEqual(history);
+  });
+});
