@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BALL_X, BANNERS, DIGITS, FLOOR_Y, GRID, MOON, PALETTE, RIM_Y, ROOF_Y, pixelAt, renderClouds, renderCrowdShimmer, renderScene, renderStars, rng, sceneMetrics, toScreen } from './scene';
+import { BALL_X, BANNERS, DIGITS, FLOOR_Y, GRID, MOON, PALETTE, RIM_Y, ROOF_Y, pixelAt, renderClouds, renderCrowdShimmer, renderScene, renderStars, rng, sceneMetrics, toScreen, cameraY } from './scene';
 import { MOON_Y, RIM_Y as TRACK_RIM_Y } from '../modes';
 
 const scene = renderScene();
@@ -95,16 +95,33 @@ describe('where the grid sits on a screen', () => {
     expect(toScreen(m, 0, 24).y).toBeGreaterThanOrEqual(70);
     expect(toScreen(m, 0, 203).y).toBeLessThan(720);
   });
-  it('sizes a phone scene to the part above the sheet and keeps the ball column in view', () => {
+  it('shows about half the world at once on a phone, full height, cropped around the ball column', () => {
     const m = sceneMetrics(390, 844);
     expect(m.narrow).toBe(true);
-    expect(m.oy + GRID.h * m.scale).toBeGreaterThanOrEqual(m.visible);
-    expect(m.oy).toBeGreaterThanOrEqual(90);
+    expect(GRID.h * m.scale).toBeGreaterThan(844);
     expect(GRID.w * m.scale).toBeGreaterThanOrEqual(390);
-    const ball = toScreen(m, BALL_X, 0).x;
+    expect(m.ox).toBeLessThanOrEqual(0);
+    const ball = m.ox + BALL_X * m.scale;
     expect(ball).toBeGreaterThan(40);
     expect(ball).toBeLessThan(390 - 40);
-    expect(toScreen(m, 0, TRACK_RIM_Y).y).toBeLessThan(m.visible);
+    expect(9 * m.scale).toBeGreaterThanOrEqual(28);
+  });
+  it('keeps the ball column in view at 320 x 568 and with the keyboard open', () => {
+    for (const [w, h] of [[320, 568], [360, 640], [390, 380], [320, 250]] as Array<[number, number]>) {
+      const m = sceneMetrics(w, h);
+      const ball = m.ox + BALL_X * m.scale;
+      expect(ball, `${w}x${h}`).toBeGreaterThan(20);
+      expect(ball).toBeLessThan(w - 20);
+    }
+  });
+  it('follows the ball: the camera puts it at the middle of the band, and stops at the ends of the world', () => {
+    const m = sceneMetrics(390, 844);
+    const mid = 300;
+    for (const row of [60, 107, 140]) expect(row * m.scale + cameraY(m, row, mid, 844)).toBeCloseTo(mid, 6);
+    expect(MOON_Y * m.scale + cameraY(m, MOON_Y, mid, 844)).toBeCloseTo(mid, 6);
+    expect(cameraY(m, TRACK_RIM_Y, mid, 844)).toBe(844 - GRID.h * m.scale);
+    const ys = [24, 60, 100, 150, 190].map((row) => cameraY(m, row, mid, 844));
+    expect(ys).toEqual([...ys].sort((a, b) => b - a));
   });
   it('maps cells to screen pixels', () => {
     expect(toScreen(sceneMetrics(1440, 860), BALL_X, 24)).toEqual({ x: 528, y: 96 });

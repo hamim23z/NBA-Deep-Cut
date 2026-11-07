@@ -279,19 +279,25 @@ export interface Metrics {
 
 export const NARROW_MAX = 700;
 export const MOON_LINE_MIN = 70;
-export const SHEET_SHARE = 0.46;
-export const HUD_NARROW = 96;
+export const NARROW_ROWS = 108;
+export const NARROW_BALL_SHARE = 0.36;
 
 export function sceneMetrics(vw: number, vh: number): Metrics {
   const narrow = vw < NARROW_MAX;
-  const visible = narrow ? Math.round(vh * (1 - SHEET_SHARE)) : vh;
-  const top = narrow ? HUD_NARROW : 0;
-  const scale = Math.ceil(Math.max(vw / GRID.w, (visible - top) / GRID.h) * 100) / 100;
-  const width = GRID.w * scale;
-  const centred = (vw - width) / 2;
-  const ox = narrow ? Math.min(0, Math.max(vw - width, vw * 0.3 - BALL_X * scale)) : centred;
-  const oy = narrow ? top : Math.min(0, Math.max((vh - GRID.h * scale) / 2, MOON_LINE_MIN - 24 * scale));
-  return { scale, ox, oy, narrow, visible };
+  if (narrow) {
+    const scale = Math.ceil(Math.max(vh / NARROW_ROWS, vw / GRID.w) * 100) / 100;
+    const ox = Math.min(0, Math.max(vw - GRID.w * scale, vw * NARROW_BALL_SHARE - BALL_X * scale));
+    return { scale, ox, oy: 0, narrow, visible: vh };
+  }
+  const scale = Math.ceil(Math.max(vw / GRID.w, vh / GRID.h) * 100) / 100;
+  const centred = (vw - GRID.w * scale) / 2;
+  const oy = Math.min(0, Math.max((vh - GRID.h * scale) / 2, MOON_LINE_MIN - 24 * scale));
+  return { scale, ox: centred, oy, narrow, visible: vh };
+}
+
+export function cameraY(m: Metrics, worldY: number, midY: number, viewH: number): number {
+  const min = viewH - GRID.h * m.scale;
+  return Math.max(min, midY - worldY * m.scale);
 }
 
 export const toScreen = (m: Metrics, gx: number, gy: number): { x: number; y: number } => ({ x: m.ox + gx * m.scale, y: m.oy + gy * m.scale });

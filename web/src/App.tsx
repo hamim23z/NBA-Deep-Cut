@@ -19,7 +19,7 @@ import { clearDataCache, loadData, type GameData } from './loadData';
 import { buildIndex } from './matching';
 import { dateInZone, diveCount, diveNumberOn, divePrompts, isDateString } from './schedule';
 import { BALL_X } from './world/scene';
-import { useMetrics } from './world/useMetrics';
+import { useMetrics, useViewport } from './world/useMetrics';
 import { WorldProvider, useWorldStore } from './world/worldStore';
 import { browserStorage, loadHistory, loadProgress, migrateLegacy, saveHistory, saveProgress, type History, type Progress, type StorageLike } from './storage';
 import { bestScore, computeStreaks, mergeDaily } from './streaks';
@@ -75,6 +75,7 @@ function readSavedMode(store: StorageLike | null, preview: boolean): Mode | null
 function Game({ now = () => new Date(), storage, search, hash, launchDate = LAUNCH_DATE, outsideNames }: Props) {
   const world = useWorldStore();
   const metrics = useMetrics();
+  const viewport = useViewport();
   const params = useMemo(() => new URLSearchParams(search ?? (typeof window === 'undefined' ? '' : window.location.search)), [search]);
   const preview = params.get('preview') === '1';
   const store = useMemo(() => (storage === undefined ? browserStorage() : storage), [storage]);
@@ -240,13 +241,21 @@ function Game({ now = () => new Date(), storage, search, hash, launchDate = LAUN
 
   const nav = { onHome: () => go({ name: 'home' }), onArchive: () => go({ name: 'archive' }), onHowTo: () => go({ name: 'howto' }) };
 
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle('narrow', metrics.narrow);
+    root.style.setProperty('--vv-h', `${viewport.h}px`);
+    root.style.setProperty('--vv-top', `${viewport.top}px`);
+    return () => root.classList.remove('narrow');
+  }, [metrics.narrow, viewport.h, viewport.top]);
+
   const heroHome = view?.name === 'home' && launched;
   const cardLeft = Math.round(metrics.ox + BALL_X * metrics.scale + 9 * metrics.scale * 0.5 + 36);
   const appStyle = { '--card-left': `${cardLeft}px` } as CSSProperties;
   return (
     <AnnouncerProvider>
       <SoundProvider storage={store}>
-        <div className={`app${metrics.narrow ? ' app--narrow' : ''}`} data-mode={mode} data-layout={metrics.narrow ? 'stacked' : 'split'} data-screen={view?.name ?? 'loading'} style={appStyle}>
+        <div className={`app${metrics.narrow ? ' app--narrow' : ''}${metrics.narrow && viewport.keyboard ? ' app--kbd' : ''}`} data-mode={mode} data-layout={metrics.narrow ? 'stacked' : 'split'} data-screen={view?.name ?? 'loading'} style={appStyle}>
           <Suspense fallback={<div className="world-fallback" aria-hidden="true" />}>
             <World />
           </Suspense>

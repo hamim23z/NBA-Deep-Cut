@@ -8,9 +8,24 @@
   user-select: none;
 }
 
+.world__cam {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  transition-property: transform;
+  transition-timing-function: ease-in-out;
+  will-change: transform;
+}
+
 .world__scene {
   position: absolute;
   overflow: hidden;
+}
+
+.world__zone,
+.world__tag {
+  display: none;
 }
 
 .world__layer {
@@ -49,7 +64,7 @@
 @keyframes world-drift { from { transform: translateX(0); } to { transform: translateX(var(--loop)); } }
 @keyframes world-cross { from { transform: translateX(-60px); } to { transform: translateX(calc(100vw + 60px)); } }
 
-.world__lines { position: absolute; inset: 0; }
+.world__lines { position: absolute; left: 0; top: 0; }
 .world__line { stroke: #f4ead6; stroke-opacity: 0.22; stroke-width: 2; stroke-dasharray: 8 8; }
 .world__guide { stroke: #f4ead6; stroke-opacity: 0.28; stroke-width: 2; stroke-dasharray: 2 8; }
 
@@ -90,7 +105,7 @@
   line-height: 1.4;
 }
 
-.world__ruler { position: absolute; top: 0; bottom: 0; width: 70px; }
+.world__ruler { position: absolute; top: 0; width: 70px; }
 .world__rule { position: absolute; right: 0; width: 0; border-right: 3px dotted #a8a8a8; }
 .world__tick { position: absolute; right: -4px; width: 12px; height: 2px; background: #a8a8a8; margin-top: -1px; }
 .world__ghost { position: absolute; right: -7px; display: flex; align-items: center; gap: 3px; margin-top: -7px; }
@@ -175,3 +190,48 @@
   .world__ball, .world__you { transition: none !important; }
   .world__bit, .world__flash, .world__ripple { display: none !important; }
 }
+
+.world.is-narrow .world__zone {
+  display: block;
+  position: absolute;
+  right: 20px;
+  margin-top: -9px;
+  color: #f4ead6;
+  opacity: 0.6;
+  font-family: var(--font-display);
+  font-size: 6px;
+  font-style: normal;
+  line-height: 1;
+}
+
+.world.is-narrow .world__tick { right: 0; width: 8px; }
+.world.is-narrow .world__ghost { right: -5px; }
+.world.is-narrow .world__you { right: 14px; }
+.world.is-narrow .world__you b { display: none; }
+
+.world__tag {
+  position: absolute;
+  z-index: 2;
+  display: block;
+  max-width: 55vw;
+  margin: 0;
+  padding: 4px 8px;
+  background: #0a0a0a;
+  border: 3px solid #ff6a13;
+  color: #f4ead6;
+  font-family: var(--font-body);
+  font-size: 19px;
+  line-height: 1;
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  animation: world-tag 0.2s steps(2, end) both;
+}
+
+@keyframes world-tag {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.world.is-reduced .world__tag { animation: none; opacity: 1; }

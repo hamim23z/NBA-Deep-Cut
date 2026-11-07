@@ -6,9 +6,10 @@ export interface WorldMark {
   id: string;
   tier: Tier | null;
   points: number;
+  name: string;
 }
 
-export const marksFrom = (results: readonly PromptResult[]): WorldMark[] => results.map((r) => ({ id: r.promptId, tier: r.status === 'valid' ? r.tier : null, points: r.points }));
+export const marksFrom = (results: readonly PromptResult[]): WorldMark[] => results.map((r) => ({ id: r.promptId, tier: r.status === 'valid' ? r.tier : null, points: r.points, name: r.matched?.name ?? r.input }));
 
 export interface WorldState {
   mode: Mode;
@@ -20,9 +21,10 @@ export interface WorldState {
   marks: WorldMark[];
   shotKey: number;
   skipped: boolean;
+  band: { top: number; bottom: number } | null;
 }
 
-export const INITIAL_WORLD: WorldState = { mode: DEFAULT_MODE, phase: 'idle', promptNumber: 0, total: 7, points: 0, diveNumber: null, marks: [], shotKey: 0, skipped: false };
+export const INITIAL_WORLD: WorldState = { mode: DEFAULT_MODE, phase: 'idle', promptNumber: 0, total: 7, points: 0, diveNumber: null, marks: [], shotKey: 0, skipped: false, band: null };
 
 export interface WorldStore {
   get(): WorldState;
