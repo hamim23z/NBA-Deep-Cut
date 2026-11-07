@@ -1,3 +1,4 @@
+import { MODE_LABEL, type Mode } from './modes';
 import type { PromptResult, Tier } from './types';
 import { SITE_URL } from './config';
 import { totalPoints } from './dive2';
@@ -10,9 +11,9 @@ export function squareFor(result: PromptResult): string {
   return result.tier === null ? MISS_SQUARE : TIER_SQUARES[result.tier];
 }
 
-/** The text a player copies: "Deep Cut #12: 385", one square per prompt, and the address of the site. */
-export function shareLine(diveNumber: number, results: readonly PromptResult[], url: string = SITE_URL): string {
-  return `Deep Cut #${diveNumber}: ${totalPoints(results)}\n${results.map(squareFor).join('')}\n${url}`;
+/** The text a player copies: "NYLON RARE #12: 385", one square per prompt, and the address of the site. */
+export function shareLine(diveNumber: number, results: readonly PromptResult[], mode: Mode = 'rare', url: string = SITE_URL): string {
+  return `NYLON ${MODE_LABEL[mode]} #${diveNumber}: ${totalPoints(results)}\n${results.map(squareFor).join('')}\n${url}`;
 }
 
 /** Copy text to the clipboard. Returns false when the browser does not allow it, so the page can show the text instead. */

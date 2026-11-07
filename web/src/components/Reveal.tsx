@@ -1,25 +1,27 @@
-import { useEffect, useState, type Ref } from 'react';
-import { useAnnounce } from '../announcer';
-import { useChartStore } from '../chart/chartStore';
+import { useEffect, useState, type CSSProperties, type Ref } from 'react';
+import { FLAVOR, LEVELS, MODE_VERB, formatFeet, type Mode } from '../modes';
 import { useReducedMotion } from '../motion';
 import { shotForResult } from '../shots';
 import { useSound } from '../sound';
+import { displayText } from './PromptText';
 import { TIER_RANGES } from '../tiers';
-import type { Answer, Prompt, PromptResult } from '../types';
-import { ShotLabel } from './ShotLabel';
+import type { Answer, Prompt, PromptResult, Tier } from '../types';
+import { TIER_COLORS, TIER_INK } from '../world/palette';
+import { useWorldStore } from '../world/worldStore';
 
 interface Props {
   prompt: Prompt;
   result: PromptResult;
+  mode: Mode;
   isLast: boolean;
   headingRef: Ref<HTMLHeadingElement>;
   onNext: () => void;
-  /** The player tapped or pressed Enter to skip the shot. */
+  /** The player tapped to skip the ball's move. */
   skipped: boolean;
   onSkip: () => void;
 }
 
-/** How long after a screen appears Enter starts to skip its animation. */
+/** How long after a screen appears Enter starts to count: the Enter that submitted the answer is still bubbling when it mounts. */
 export const ARM_MS = 120;
 
 /** The three most famous valid answers: lowest tier first, then the order of the file. */
@@ -108,65 +110,67 @@ function AnswerList({ title, answers }: { title: string; answers: readonly Answe
   );
 }
 
-export function Reveal({ prompt, result, isLast, headingRef, onNext, skipped, onSkip }: Props) {
+export function Reveal({ prompt, result, mode, isLast, headingRef, onNext, skipped, onSkip }: Props) {
   const shot = shotForResult(result);
   const reduced = useReducedMotion();
-  const announce = useAnnounce();
   const { play } = useSound();
-  const chart = useChartStore();
+  const world = useWorldStore();
+  const tier = result.status === 'valid' ? result.tier : null;
+  const level = tier ? LEVELS[tier - 1] : undefined;
+  const color = tier ? TIER_COLORS[tier as Tier] : '#6E6E6E';
+  const verb = MODE_VERB[mode];
 
-  // Say the result once, and play its sound. The page text below carries the same words for everyone else.
+  // The world moves the ball for this result, and the sound plays. The live line next to the world says the same in words.
   useEffect(() => {
-    announce(`${headline(result)}. ${shot.label}.`);
-    chart.set({ phase: 'shot', shot, shotKey: chart.get().shotKey + 1, skipped: false });
+    world.set({ phase: 'result', shotKey: world.get().shotKey + 1, skipped: false });
     if (!reduced) play(shot.name);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per result
   }, [result.promptId]);
 
-  // A tap anywhere, or Enter, skips to the end of the shot. Neither blocks anything: buttons and typing work as before.
-  // The listener is armed a moment after the result appears: in a browser, the Enter that submitted the answer is still
-  // bubbling when this screen mounts, and it must not count as a request to skip the shot.
+  // Enter goes on to the next prompt. It is armed a moment after the result appears: in a browser, the Enter that submitted the
+  // answer is still bubbling when this screen mounts, and it must not count as "next".
   useEffect(() => {
-    if (skipped) return;
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Enter' && !e.repeat) onSkip();
+      if (e.key === 'Enter' && !e.repeat) {
+        e.preventDefault();
+        onNext();
+      }
     };
     const arm = setTimeout(() => document.addEventListener('keydown', onKey), ARM_MS);
     return () => {
       clearTimeout(arm);
       document.removeEventListener('keydown', onKey);
     };
-  }, [skipped, onSkip]);
+  }, [onNext]);
 
-  const classes = ['card', 'reveal', `reveal--${shot.name}`, skipped ? 'is-skipped' : '', reduced ? 'is-reduced' : ''].filter(Boolean).join(' ');
+  const classes = ['card', 'result-card', skipped ? 'is-skipped' : '', reduced ? 'is-reduced' : ''].filter(Boolean).join(' ');
+  const style = { '--tier': color, '--tier-text': tier === 1 || !tier ? '#A8A8A8' : color, '--tier-ink': tier ? TIER_INK[tier as Tier] : '#F4EAD6' } as CSSProperties;
+  const typed = result.matched?.name ?? result.input;
   return (
-    <section className={classes} aria-labelledby="result-heading" onPointerDown={skipped ? undefined : onSkip}>
-      <div className="reveal__banner">
-        <ShotLabel shot={shot} skipped={skipped} />
-      </div>
-      <h2 className="eyebrow reveal__prompt">{prompt.text}</h2>
-      <h3
-        id="result-heading"
-        className={`result result--${result.status === 'valid' && result.tier ? `t${result.tier}` : result.status}${result.status === 'outside_range' ? ' shake shake--0' : ''}`}
-        tabIndex={-1}
-        ref={headingRef}
-      >
-        {headline(result)}
+    <section className={classes} style={style} aria-labelledby="result-heading" onPointerDown={skipped ? undefined : onSkip} data-tier={tier ?? 'miss'}>
+      <h2 className="visually-hidden">{displayText(prompt.text)}</h2>
+      <p className="result-card__pick">{level ? `${level.pick} PICK` : 'NO POINTS'}</p>
+      <h3 id="result-heading" className={`result-card__level${result.status === 'outside_range' ? ' shake shake--0' : ''}`} tabIndex={-1} ref={headingRef}>
+        {level ? level.name : 'AIRBALL'}
+        <span className="visually-hidden">: {headline(result)}</span>
       </h3>
-      <div className="reveal__rest">
-        <p>{explanation(prompt, result)}</p>
-
+      <input className="result-card__answer" readOnly aria-label="Your answer" value={typed.trim() === '' ? 'No answer' : `"${typed}"`} onFocus={(e) => e.currentTarget.select()} ref={(node) => node?.focus({ preventScroll: true })} />
+      <p className="result-card__points">
+        <strong>+{result.points} PTS</strong>
+        {level && <> · {verb.move} to {formatFeet(level.ft)} ft</>}
+      </p>
+      {tier ? <p className="result-card__flavor">{FLAVOR[mode][tier - 1]}</p> : <p className="result-card__flavor">{explanation(prompt, result)}</p>}
+      <button type="button" className="primary result-card__next" onClick={onNext}>
+        {isLast ? 'SEE RESULTS ▶' : `${verb.next} ▶`}
+      </button>
+      <details className="result-card__more">
+        <summary>See the famous and the rare answers</summary>
+        {tier && <p>{explanation(prompt, result)}</p>}
         <AnswerList title="The most famous valid answers" answers={mostFamous(prompt.answers)} />
         {rarestOthers(prompt.answers).length > 0 && <AnswerList title="The rarest valid answers" answers={rarestOthers(prompt.answers)} />}
-
         <AllAnswers answers={prompt.answers} />
-        <p className="caveat">
-          Obscurity is estimated from how famous an answer is across the whole data set, not from what other players typed.
-        </p>
-        <button type="button" className="primary" onClick={onNext}>
-          {isLast ? 'See results' : 'Next prompt'}
-        </button>
-      </div>
+        <p className="caveat">Obscurity is estimated from how famous an answer is across the whole data set, not from what other players typed.</p>
+      </details>
     </section>
   );
 }

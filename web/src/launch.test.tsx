@@ -41,7 +41,7 @@ describe('the real launch gate', () => {
 
   it('is playable from midnight New York time on launch day: dive #1', async () => {
     show('2026-10-29T04:00:00Z');
-    expect(await screen.findByRole('button', { name: /^Play today/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ })).toBeInTheDocument();
     expect(screen.getByText('#1')).toBeInTheDocument();
   });
 

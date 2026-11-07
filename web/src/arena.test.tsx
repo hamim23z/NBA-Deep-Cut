@@ -3,8 +3,6 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AnimationsPage from './AnimationsPage';
 import App from './App';
-import { STRONG_SHARE } from './components/Final';
-import { MAX_DIVE_POINTS } from './tiers';
 import { divePrompts } from './schedule';
 import type { StorageLike } from './storage';
 import { MOCK_OUTSIDE_RANGE_NAMES } from './outsideRange';
@@ -37,7 +35,7 @@ type User = ReturnType<typeof setup>;
 
 async function begin(user: User, storage: StorageLike | null = memory()) {
   const r = render(<App now={() => LAUNCH} search="" storage={storage} />);
-  await user.click(await screen.findByRole('button', { name: /^Play today/ }));
+  await user.click(await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ }));
   await screen.findByRole('combobox');
   return r;
 }
@@ -45,21 +43,23 @@ const answer = async (user: User, text: string) => {
   await user.type(screen.getByRole('combobox'), text);
   await user.keyboard('{Enter}');
 };
-const announcer = () => screen.getByTestId('announcer').textContent ?? '';
+const announcerText = () => screen.getByTestId('world-live').textContent ?? '';
 
-describe('the scoreboard', () => {
-  it('shows the prompt number, the points and the dive number', async () => {
+describe('the HUD', () => {
+  it('shows the altitude, the prompt pips, the score and the mode while a dive is on', async () => {
     const user = setup();
     await begin(user);
-    const board = screen.getByRole('group', { name: 'Scoreboard' });
-    expect(within(board).getByText('Prompt')).toBeInTheDocument();
-    expect(within(board).getByText('Dive')).toBeInTheDocument();
-    expect(within(board).getByText('#1')).toBeInTheDocument();
-    expect(screen.getByText(/Prompt 1 of 7/)).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Altitude' })).toBeInTheDocument();
+    expect(screen.getByTestId('hud-altitude')).toHaveTextContent('3,200'); // rare mode starts on the moon
+    expect(screen.getByRole('group', { name: 'Prompt 1 of 7' })).toBeInTheDocument();
+    expect(screen.getByText('PROMPT 1 OF 7')).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Score' })).toBeInTheDocument();
     expect(screen.getByTestId('scoreboard-points')).toHaveTextContent('0');
+    expect(screen.getByTestId('hud-mode')).toHaveTextContent('RARE · START ON THE MOON, SINK');
+    expect(document.querySelectorAll('.pip')).toHaveLength(7);
   });
 
-  it('rolls the new points in after the shot', async () => {
+  it('rolls the new points in after the ball has moved', async () => {
     const user = setup();
     await begin(user);
     const first = dive()[0]!.answers[0]!;
@@ -69,99 +69,117 @@ describe('the scoreboard', () => {
     await act(async () => void vi.advanceTimersByTime(2500));
     expect(screen.getByTestId('scoreboard-points')).toHaveTextContent(String(first.points));
   });
+
+  it('colours a pip with the tier of the answer and puts its number in it', async () => {
+    const user = setup();
+    await begin(user);
+    const first = dive()[0]!.answers[0]!;
+    await answer(user, first.name);
+    await screen.findByRole('heading', { level: 3, name: /points/ });
+    expect(document.querySelectorAll('.pip')[0]).toHaveTextContent(String(first.tier));
+  });
 });
 
-const chartEl = (): Promise<HTMLElement> => screen.findByTestId('chart');
-const letArm = () => act(async () => void vi.advanceTimersByTime(250)); // Enter skips only a moment after the result appears
+const worldEl = (): Promise<HTMLElement> => screen.findByTestId('world');
+const letArm = () => act(async () => void vi.advanceTimersByTime(250)); // Enter counts only a moment after the result appears
 
-describe('the shot after an answer', () => {
-  it('plays the shot for the tier on the chart and shows the points and the tier name in the panel', async () => {
+describe('the result card after an answer', () => {
+  it('moves the ball to the answer\'s level and shows the level, the pick, the answer, the points and a line about it', async () => {
     const user = setup();
     await begin(user);
     const first = dive()[0]!.answers[0]!;
     await answer(user, first.name);
     await screen.findByRole('heading', { level: 3, name: /points/ });
-    const stage = await chartEl();
-    await vi.waitFor(() => expect(stage).toHaveAttribute('data-phase', 'shot'));
-    expect(stage.getAttribute('data-tier')).toBe(String(first.tier));
-    expect(stage.querySelector('.chart__fly-y')).not.toBeNull(); // the ball flies to its marker
-    expect(stage.querySelector('.chart__mark')).not.toBeNull();
-    expect(screen.getByTestId('chart-live')).toHaveTextContent(`Tier ${first.tier}, ${first.points} points, ${first.points} total`);
-    expect(document.querySelector('.reveal .shot-label')).toHaveTextContent(String(first.points));
-    expect(stage.querySelector('svg')).toHaveAttribute('aria-hidden', 'true'); // decoration: the panel has every word
+    const stage = await worldEl();
+    await vi.waitFor(() => expect(stage).toHaveAttribute('data-phase', 'result'));
+    const levels = ['MOON', 'ORBIT', 'CLOUDS', 'ROOF', 'RAFTERS', 'RIM'];
+    expect(stage).toHaveAttribute('data-level', levels[first.tier - 1]);
+    const card = document.querySelector('.result-card')!;
+    expect(within(card as HTMLElement).getByRole('heading', { level: 3 })).toHaveTextContent(levels[first.tier - 1]!);
+    expect(card.querySelector('.result-card__pick')?.textContent).toMatch(/ PICK$/);
+    expect((card.querySelector('.result-card__answer') as HTMLInputElement).value).toBe(`"${first.name}"`);
+    expect(card.querySelector('.result-card__points')?.textContent).toContain(`+${first.points} PTS · sink to`);
+    expect(card.querySelector('.result-card__flavor')?.textContent?.length).toBeGreaterThan(10);
+    expect(stage).toHaveAttribute('aria-hidden', 'true'); // decoration: the card has every word
   });
 
-  it('announces the points and the tier name when an answer is submitted', async () => {
+  it('says the result in a polite live line: the level, the points and the total', async () => {
     const user = setup();
     await begin(user);
     const first = dive()[0]!.answers[0]!;
     await answer(user, first.name);
     await screen.findByRole('heading', { level: 3, name: /points/ });
-    const said = announcer();
-    expect(said).toContain(`Tier ${first.tier}: ${first.points} points`);
-    expect(said).toMatch(/Garbage time|Bench mob|Starting five|All-Star|Buzzer beater|Poster dunk/);
+    expect(announcerText()).toMatch(new RegExp(`^(MOON|ORBIT|CLOUDS|ROOF|RAFTERS|RIM), ${first.points} points, ${first.points} total$`));
+    expect(screen.getByTestId('world-live')).toHaveAttribute('aria-live', 'polite');
   });
 
-  it('announces a miss as an airball, and the chart takes the airball', async () => {
+  it('keeps focus in an input: the answer stays focused and Enter goes on to the next prompt', async () => {
+    const user = setup();
+    await begin(user);
+    await answer(user, dive()[0]!.answers[0]!.name);
+    await screen.findByRole('heading', { level: 3, name: /points/ });
+    const kept = screen.getByLabelText('Your answer');
+    expect(kept).toHaveFocus();
+    await letArm();
+    await user.keyboard('{Enter}');
+    const input = await screen.findByRole('combobox');
+    expect(input).toHaveFocus();
+    expect(screen.getByText('PROMPT 2 OF 7')).toBeInTheDocument();
+  });
+
+  it('does not count the Enter that submitted the answer as "next"', async () => {
+    const user = setup();
+    await begin(user);
+    await answer(user, dive()[0]!.answers[0]!.name);
+    await screen.findByRole('heading', { level: 3, name: /points/ });
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument(); // still on the result
+    await user.click(screen.getByRole('button', { name: /^(SINK|CLIMB) ▶$/ }));
+    expect(await screen.findByRole('combobox')).toHaveFocus();
+  });
+
+  it('is an airball for a wrong answer: the ball does not move, the card says AIRBALL and +0', async () => {
     const user = setup();
     await begin(user);
     await answer(user, 'qwerty zxcv');
     await screen.findByRole('heading', { level: 3, name: /0 points/ });
-    expect(announcer()).toContain('Not a valid answer: 0 points. Airball.');
-    const stage = await chartEl();
-    await vi.waitFor(() => expect(stage).toHaveAttribute('data-tier', 'miss'));
-    expect(stage.querySelector('.chart__fly-y--miss')).not.toBeNull();
+    const stage = await worldEl();
+    expect(stage).toHaveAttribute('data-level', 'MOON'); // rare mode starts there and stays
+    const card = document.querySelector('.result-card') as HTMLElement;
+    expect(within(card).getByRole('heading', { level: 3 })).toHaveTextContent('AIRBALL');
+    expect(card.querySelector('.result-card__points')?.textContent).toContain('+0 PTS');
+    expect(card).toHaveAttribute('data-tier', 'miss');
+    expect(announcerText()).toBe('AIRBALL, 0 points, 0 total');
+    expect(document.querySelector('.world__ball')).toHaveClass('is-shaking');
   });
 
   it('an outside-the-range name is a gentle airball, with a shake of the message', async () => {
     const user = setup();
     await begin(user);
     await answer(user, 'Orson Quillfeather');
-    const heading = await screen.findByRole('heading', { level: 3, name: 'Outside the data range' });
+    const heading = await screen.findByRole('heading', { level: 3, name: /Outside the data range/ });
     expect(heading).toHaveClass('shake');
-    await vi.waitFor(async () => expect(await chartEl()).toHaveAttribute('data-tier', 'miss'));
     expect(screen.getByText(/does not count against you/i)).toBeInTheDocument();
   });
 
-  it('the Enter that submits an answer does not skip the shot; a later Enter does, and everything keeps working', async () => {
+  it('skips the ball\'s move on a tap', async () => {
     const user = setup();
     await begin(user);
     await answer(user, dive()[0]!.answers[0]!.name);
     await screen.findByRole('heading', { level: 3, name: /points/ });
-    const reveal = document.querySelector('.reveal')!;
-    expect(reveal).not.toHaveClass('is-skipped'); // the submitting Enter is still bubbling when this screen mounts
-    await letArm();
-    expect(reveal).not.toHaveClass('is-skipped');
-    await user.keyboard('{Enter}');
-    expect(reveal).toHaveClass('is-skipped');
-    expect(await chartEl()).toHaveClass('is-skipped');
-    // the next prompt is not skipped, and its input takes focus and typing at once
-    await user.click(screen.getByRole('button', { name: 'Next prompt' }));
-    const input = await screen.findByRole('combobox');
-    expect(input).toHaveFocus();
-    await user.type(input, 'abc');
-    expect(input).toHaveValue('abc');
+    const card = document.querySelector('.result-card')!;
+    await user.pointer({ target: card.querySelector('.result-card__pick')!, keys: '[MouseLeft]' });
+    expect(card).toHaveClass('is-skipped');
+    expect(await worldEl()).toHaveClass('is-skipped');
   });
 
-  it('skips on a tap too', async () => {
-    const user = setup();
-    await begin(user);
-    await answer(user, 'qwerty zxcv');
-    await screen.findByRole('heading', { level: 3, name: /points/ });
-    const reveal = document.querySelector('.reveal')!;
-    await user.pointer({ target: reveal.querySelector('.reveal__banner')!, keys: '[MouseLeft]' });
-    expect(reveal).toHaveClass('is-skipped');
-    expect(await chartEl()).toHaveClass('is-skipped');
-  });
-
-  it('a skipped shot puts the points on the scoreboard at once', async () => {
+  it('puts the points on the HUD at once when the move is skipped', async () => {
     const user = setup();
     await begin(user);
     const first = dive()[0]!.answers[0]!;
     await answer(user, first.name);
     await screen.findByRole('heading', { level: 3, name: /points/ });
-    await letArm();
-    await user.keyboard('{Enter}');
+    await user.pointer({ target: document.querySelector('.result-card__pick')!, keys: '[MouseLeft]' });
+    await act(async () => void vi.advanceTimersByTime(50));
     expect(screen.getByTestId('scoreboard-points')).toHaveTextContent(String(first.points));
   });
 });
@@ -178,35 +196,20 @@ describe('the input', () => {
 });
 
 describe('reduced motion', () => {
-  it('replaces the flight with a fade: no ball in the air, no pulse or flash, and the label is still there', async () => {
+  it('moves the ball at once: no streaks, no celebration, and the card is still there', async () => {
     vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener: () => undefined, removeEventListener: () => undefined })));
     const user = setup();
     await begin(user);
     await answer(user, dive()[0]!.answers[0]!.name);
     await screen.findByRole('heading', { level: 3, name: /points/ });
-    const reveal = document.querySelector('.reveal')!;
-    expect(reveal).toHaveClass('is-reduced');
-    const stage = await chartEl();
+    const card = document.querySelector('.result-card')!;
+    expect(card).toHaveClass('is-reduced');
+    const stage = await worldEl();
     await vi.waitFor(() => expect(stage).toHaveClass('is-reduced'));
-    for (const sel of ['.chart__fly-x', '.chart__pulse', '.chart__heat', '.chart__stamp']) expect(stage.querySelector(sel), sel).toBeNull();
-    expect(stage.querySelector('.chart__mark')).not.toBeNull(); // the marker is there at once
-    expect(reveal.querySelector('.shot-label')).not.toBeNull();
-    expect(announcer()).toMatch(/points\./); // still announced
-    expect(screen.getByTestId('scoreboard-points')).not.toHaveTextContent(/^$/);
-  });
-
-  it('shows the results at once, with no confetti', async () => {
-    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener: () => undefined, removeEventListener: () => undefined })));
-    const user = setup();
-    await begin(user);
-    for (let i = 0; i < 7; i++) {
-      const rarest = [...dive()[i]!.answers].sort((a, b) => b.tier - a.tier)[0]!;
-      await answer(user, rarest.name);
-      await screen.findByRole('heading', { level: 3, name: /points/ });
-      await user.click(screen.getByRole('button', { name: i === 6 ? 'See results' : 'Next prompt' }));
-    }
-    expect(document.querySelector('.final__show')).toHaveClass('is-reduced');
-    expect(document.querySelector('.confetti')).toBeNull();
+    expect(stage.querySelector('.world__fx')).toBeNull();
+    expect(document.querySelector('.world__ball')).not.toHaveClass('is-moving');
+    expect((document.querySelector('.world__ball') as HTMLElement).style.transitionDuration).toBe('0ms');
+    expect(announcerText()).toMatch(/points/);
   });
 });
 
@@ -218,74 +221,48 @@ async function playWith(user: User, pick: (p: Prompt) => string): Promise<number
     total += p.answers.find((a) => a.name === name)?.points ?? 0;
     await answer(user, name);
     await screen.findByRole('heading', { level: 3, name: /points/ });
-    await user.click(screen.getByRole('button', { name: i === 6 ? 'See results' : 'Next prompt' }));
+    await user.click(screen.getByRole('button', { name: i === 6 ? 'SEE RESULTS ▶' : /^(SINK|CLIMB) ▶$/ }));
   }
   return total;
 }
 
 describe('the results screen', () => {
-  it('plays back seven squares colored by tier, then the total', async () => {
+  it('shows seven squares coloured by tier, each with its number, then the total', async () => {
     const user = setup();
     await begin(user);
-    await playWith(user, (p) => p.answers[0]!.name);
+    const total = await playWith(user, (p) => p.answers[0]!.name);
     const squares = within(screen.getByRole('list', { name: 'Your seven answers' })).getAllByRole('listitem');
     expect(squares).toHaveLength(7);
-    for (const s of squares) {
-      expect(s.querySelector('.square__tier')?.textContent).toMatch(/^([1-6]|×)$/); // the tier colour always comes with its number
-      expect(s.className).toMatch(/square--(t[1-6]|miss)/);
-    }
-    // staggered: each square starts a little later than the one before
-    expect(squares.map((s) => s.getAttribute('style'))).toEqual(squares.map((_, i) => expect.stringContaining(`--i: ${i}`)));
+    for (const s of squares) expect(s.querySelector('.square__tier')?.textContent).toMatch(/^([1-6]|×)$/); // the tier colour always comes with its number
+    expect(screen.getByRole('group', { name: `Total ${total} out of 700` })).toBeInTheDocument();
   });
 
-  it('throws confetti only for a strong total (at least 60% of the maximum)', async () => {
-    expect(STRONG_SHARE).toBe(0.6);
+  it('has the final altitude, the best score in the mode, a tier breakdown, the streak and a share line', async () => {
     const user = setup();
     await begin(user);
-    const strong = await playWith(user, (p) => [...p.answers].sort((a, b) => b.points - a.points)[0]!.name);
-    const confetti = document.querySelector('.confetti') !== null;
-    expect(confetti).toBe(strong >= STRONG_SHARE * MAX_DIVE_POINTS);
+    const total = await playWith(user, (p) => p.answers[0]!.name);
+    expect(screen.getByTestId('final-altitude').textContent).toMatch(/ ft · (MOON|ORBIT|CLOUDS|ROOF|RAFTERS|RIM)$/);
+    expect(screen.getByTestId('final-best')).toHaveTextContent(`${total} · NEW BEST`);
+    expect(screen.getByTestId('final-streak')).toHaveTextContent('1 day');
+    expect(screen.getByRole('heading', { level: 3, name: 'Tier breakdown' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Your result').textContent).toMatch(new RegExp(`^NYLON RARE #1: ${total}\\n`));
+    expect(screen.getByRole('button', { name: 'PLAY THE OTHER MODE (COMMON)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Archive' })).toBeInTheDocument();
   });
 
-  it('has no confetti for a weak total', async () => {
+  it('puts the ball on its final level in the world', async () => {
     const user = setup();
     await begin(user);
-    for (let i = 0; i < 7; i++) {
-      await answer(user, 'qwerty zxcv');
-      await screen.findByRole('heading', { level: 3, name: /points/ });
-      await user.click(screen.getByRole('button', { name: i === 6 ? 'See results' : 'Next prompt' }));
-    }
+    await playWith(user, (p) => p.answers[0]!.name);
+    expect(await worldEl()).toHaveAttribute('data-phase', 'results');
+  });
+
+  it('has no confetti or replay button: the only celebration is the end level', async () => {
+    const user = setup();
+    await begin(user);
+    await playWith(user, (p) => p.answers[0]!.name);
     expect(document.querySelector('.confetti')).toBeNull();
-    expect(screen.queryByText(/strong dive/i)).not.toBeInTheDocument();
-  });
-
-  it('has a replay button that plays the seven shots again', async () => {
-    const user = setup();
-    await begin(user);
-    await playWith(user, (p) => p.answers[0]!.name);
-    const before = document.querySelector('.final__show');
-    await user.click(screen.getByRole('button', { name: 'Replay the shots' }));
-    const after = document.querySelector('.final__show');
-    expect(after).not.toBeNull();
-    expect(after).not.toBe(before); // a fresh element restarts every animation
-    expect(within(screen.getByRole('list', { name: 'Your seven answers' })).getAllByRole('listitem')).toHaveLength(7);
-    expect(screen.getByLabelText(/^Total \d+ out of 700$/)).toBeInTheDocument();
-  });
-
-  it('shows the streak, popping because it just went up, and again on the home screen', async () => {
-    const user = setup();
-    await begin(user);
-    await playWith(user, (p) => p.answers[0]!.name);
-    const streak = screen.getByTestId('final-streak');
-    expect(streak).toHaveTextContent('1 day');
-    expect(streak).toHaveClass('streak-badge--pop');
-    await user.click(screen.getByRole('button', { name: /^Home$/ }));
-    expect(screen.getByTestId('streak-current')).toHaveClass('streak-badge--pop');
-  });
-
-  it('does not pop the streak when the home screen just opens', async () => {
-    render(<App now={() => LAUNCH} search="" storage={memory()} />);
-    expect(await screen.findByTestId('streak-current')).not.toHaveClass('streak-badge--pop');
+    expect(screen.queryByRole('button', { name: 'Replay the shots' })).not.toBeInTheDocument();
   });
 });
 
@@ -298,7 +275,7 @@ describe('the sound toggle', () => {
     expect(toggle).toHaveAttribute('aria-pressed', 'false');
     await user.click(toggle);
     expect(screen.getByRole('button', { name: /Sound on/ })).toHaveAttribute('aria-pressed', 'true');
-    expect(store.getItem('deepcut.sound')).toBe('on');
+    expect(store.getItem('nylon:sound')).toBe('on');
     first.unmount();
     render(<App now={() => LAUNCH} search="" storage={store} />);
     expect(await screen.findByRole('button', { name: /Sound on/ })).toBeInTheDocument();
@@ -313,28 +290,16 @@ describe('the sound toggle', () => {
 });
 
 describe('the animation review page', () => {
-  it('shows every outcome on the chart, one button for each, and a reduced-motion version on request', async () => {
+  it('shows the ball moving to every level, one button for each, a mode switch and a reduced-motion version', async () => {
     const user = setup();
     render(<AnimationsPage />);
-    const stage = await screen.findByTestId('chart');
-    for (const name of ['airball', 'tier-1', 'tier-2', 'tier-3', 'tier-4', 'tier-5', 'tier-6']) expect(screen.getByTestId(`demo-${name}`)).toBeInTheDocument();
-    await user.click(screen.getByTestId('demo-tier-6'));
-    await vi.waitFor(() => expect(stage).toHaveAttribute('data-tier', '6'));
-    expect(stage.querySelector('.chart__stamp')).not.toBeNull();
+    const stage = await screen.findByTestId('world');
+    for (const name of ['airball', 'moon', 'orbit', 'clouds', 'roof', 'rafters', 'rim']) expect(screen.getByTestId(`demo-${name}`)).toBeInTheDocument();
+    await user.click(screen.getByTestId('mode-common'));
+    await user.click(screen.getByTestId('demo-moon'));
+    await vi.waitFor(() => expect(stage).toHaveAttribute('data-level', 'MOON'));
+    expect(stage).toHaveAttribute('data-mode', 'common');
     await user.click(screen.getByRole('checkbox', { name: /reduced-motion/i }));
     await vi.waitFor(() => expect(stage).toHaveClass('is-reduced'));
-    expect(stage.querySelector('.chart__stamp')).toBeNull();
-  });
-
-  it('loops through every outcome in turn', async () => {
-    render(<AnimationsPage />);
-    const stage = await screen.findByTestId('chart');
-    const seen = new Set<string>();
-    for (let i = 0; i < 8; i++) {
-      await vi.waitFor(() => expect(stage.getAttribute('data-tier')).not.toBe(''));
-      seen.add(stage.getAttribute('data-tier') ?? '');
-      await act(async () => void vi.advanceTimersByTime(2700));
-    }
-    expect([...seen].sort()).toEqual(['1', '2', '3', '4', '5', '6', 'miss']);
   });
 });

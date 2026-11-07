@@ -1,9 +1,12 @@
 import { displayText } from './components/PromptText';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
-import { PROGRESS_KEY, STORAGE_KEY } from './config';
+import { historyKey, progressKey } from './config';
+
+const STORAGE_KEY = historyKey('rare');
+const PROGRESS_KEY = progressKey();
 import { divePrompts } from './schedule';
 import { MOCK_OUTSIDE_RANGE_NAMES } from './outsideRange';
 import { loadHistory, loadProgress, saveProgress, type Progress, type StorageLike } from './storage';
@@ -41,12 +44,12 @@ const answerWith = async (user: User, name: string) => {
   await user.type(screen.getByRole('combobox'), name);
   await user.keyboard('{Enter}');
 };
-const nextButton = (last = false) => screen.findByRole('button', { name: last ? 'See results' : 'Next prompt' });
+const nextButton = (last = false) => screen.findByRole('button', { name: last ? 'SEE RESULTS ▶' : /^(SINK|CLIMB) ▶$/ });
 
 /** Start today's dive and answer the first n prompts with their best-known answer (staying on the result of the last one when stay). */
 async function playFirst(user: User, store: StorageLike, n: number, stay = false) {
   const r = open(store);
-  await user.click(await screen.findByRole('button', { name: /^Play today/ }));
+  await user.click(await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ }));
   await screen.findByRole('combobox');
   let points = 0;
   for (let i = 0; i < n; i++) {
@@ -69,9 +72,9 @@ describe('reloading in the middle of a dive', () => {
     open(store);
     await screen.findByRole('combobox');
     expect(promptText()).toBe(displayText(dive()[3]!.text));
-    expect(screen.getByText(/Prompt 4 of 7/)).toBeInTheDocument();
+    expect(await screen.findByText(/Prompt 4 of 7/)).toBeInTheDocument();
     expect(screen.getByTestId('scoreboard-points')).toHaveTextContent(String(first.points));
-    expect(within(screen.getByRole('group', { name: 'Scoreboard' })).getByText('#1')).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Prompt 4 of 7' })).toBeInTheDocument();
   });
 
   it('plays the rest of the dive to the same total as an unbroken dive', async () => {
@@ -140,10 +143,10 @@ describe('reloading in the middle of a dive', () => {
     const user = setup();
     const store = memory();
     await playFirst(user, store, 2);
-    await user.click(screen.getByRole('button', { name: 'Deep Cut, home' }));
-    await user.click(await screen.findByRole('button', { name: /^Play today/ }));
+    await user.click(screen.getByRole('button', { name: 'NYLON, home' }));
+    await user.click(await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ }));
     await screen.findByRole('combobox');
-    expect(screen.getByText(/Prompt 3 of 7/)).toBeInTheDocument();
+    expect(await screen.findByText(/Prompt 3 of 7/)).toBeInTheDocument();
     expect(promptText()).toBe(displayText(dive()[2]!.text));
   });
 });
@@ -174,7 +177,7 @@ describe('the clock keeps running while the page is closed', () => {
     vi.setSystemTime(new Date(Date.now() + 40_000));
     open(store);
     await screen.findByRole('combobox');
-    expect(screen.getByText(/Prompt 3 of 7/)).toBeInTheDocument();
+    expect(await screen.findByText(/Prompt 3 of 7/)).toBeInTheDocument();
     await vi.waitFor(() => expect(loadProgress(store, PROGRESS_KEY)?.results).toHaveLength(2));
     const saved = loadProgress(store, PROGRESS_KEY)!;
     expect(saved.results[1]!.status).toBe('timeout');
@@ -206,19 +209,19 @@ describe('stale or damaged saved progress', () => {
     vi.setSystemTime(new Date(DAY2));
     const user = setup();
     open(store);
-    expect(await screen.findByRole('button', { name: /^Play today/ })).toBeInTheDocument(); // home, not a resumed dive
+    expect(await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ })).toBeInTheDocument(); // home, not a resumed dive
     expect(screen.getByText('#2')).toBeInTheDocument();
     expect(store.data.get(PROGRESS_KEY)).toBe('');
-    await user.click(screen.getByRole('button', { name: /^Play today/ }));
+    await user.click(screen.getByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ }));
     await screen.findByRole('combobox');
-    expect(screen.getByText(/Prompt 1 of 7/)).toBeInTheDocument();
+    expect(await screen.findByText(/Prompt 1 of 7/)).toBeInTheDocument();
   });
 
   it('discards a saved dive whose prompts are no longer the same', async () => {
     const store = memory();
     saveProgress(store, PROGRESS_KEY, progress({ promptIds: ['a', 'b', 'c', 'd', 'e', 'f', 'g'] }));
     open(store);
-    expect(await screen.findByRole('button', { name: /^Play today/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ })).toBeInTheDocument();
     expect(store.data.get(PROGRESS_KEY)).toBe('');
   });
 
@@ -237,7 +240,7 @@ describe('stale or damaged saved progress', () => {
     const store = memory();
     store.data.set(PROGRESS_KEY, '{nope');
     open(store);
-    expect(await screen.findByRole('button', { name: /^Play today/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ })).toBeInTheDocument();
   });
 
   it('resumes an archive dive too', async () => {
@@ -246,18 +249,18 @@ describe('stale or damaged saved progress', () => {
     vi.setSystemTime(new Date(DAY2)); // dive 1 is a past dive now
     open(store);
     await screen.findByRole('combobox');
-    expect(screen.getByText(/Prompt 3 of 7/)).toBeInTheDocument();
+    expect(await screen.findByText(/Prompt 3 of 7/)).toBeInTheDocument();
   });
 
   it('plays on when the browser will not save progress', async () => {
     const user = setup();
     const broken: StorageLike = { getItem: () => null, setItem: () => { throw new Error('QuotaExceededError'); } };
     open(broken);
-    await user.click(await screen.findByRole('button', { name: /^Play today/ }));
+    await user.click(await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ }));
     await screen.findByRole('combobox');
     await answerWith(user, dive()[0]!.answers[0]!.name);
     await screen.findByRole('heading', { level: 3, name: /points/ });
-    expect(screen.getByRole('button', { name: 'Next prompt' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^(SINK|CLIMB) ▶$/ })).toBeInTheDocument();
     expect(act).toBeDefined();
   });
 });
@@ -268,7 +271,7 @@ describe('the progress storage', () => {
   it('round-trips and clears', () => {
     const store = memory();
     expect(saveProgress(store, 'k', ok)).toBe(true);
-    expect(loadProgress(store, 'k')).toEqual(ok);
+    expect(loadProgress(store, 'k')).toEqual({ ...ok, gameMode: 'rare' }); // a dive saved by the old game was played the rare way
     saveProgress(store, 'k', null);
     expect(loadProgress(store, 'k')).toBeNull();
   });

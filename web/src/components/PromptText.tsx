@@ -1,11 +1,12 @@
+import { capitalizeFirst } from '../modes';
+
 /** Splits "Since 2001-02 (through 2025-26), name a player who ..." into the era and the task. The era is shown smaller. */
 export function splitEra(text: string): { era: string; task: string } | null {
   const m = /^(Since [^,]+,)\s+(.+)$/s.exec(text);
   return m && m[1] && m[2] ? { era: m[1], task: m[2] } : null;
 }
 
-/** The text with its first letter in capitals. For display only: the prompt data and the matcher never see the result. */
-export const capitalizeFirst = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
+export { capitalizeFirst };
 
 /** The sentence exactly as the player reads it: the prompt's words, with the task starting in a capital. */
 export function displayText(text: string): string {

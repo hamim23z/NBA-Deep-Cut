@@ -1,10 +1,11 @@
+import { SOUND_KEY } from './config';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { ShotName } from './shots';
 import type { StorageLike } from './storage';
 import { browserStorage } from './storage';
 
 /** Tiny generated tones for the shots (Web Audio). No audio files. Off by default, and silent until the visitor has interacted. */
-export const SOUND_KEY = 'deepcut.sound';
+export { SOUND_KEY };
 
 export function loadSoundSetting(storage: StorageLike | null): boolean {
   try {

@@ -9,11 +9,11 @@ const res = (tier: Tier | null): PromptResult => ({
 });
 
 describe('share line', () => {
-  it('reads "Deep Cut #12: 385" followed by seven colored squares', () => {
+  it('reads "NYLON RARE #12: 385" followed by seven colored squares', () => {
     // 100 + 100 + 75 + 55 + 35 + 20 + 0 = 385
     const results = [res(6), res(6), res(5), res(4), res(3), res(2), res(null)];
     const line = shareLine(12, results);
-    expect(line).toBe(`Deep Cut #12: 385\n${TIER_SQUARES[6]}${TIER_SQUARES[6]}${TIER_SQUARES[5]}${TIER_SQUARES[4]}${TIER_SQUARES[3]}${TIER_SQUARES[2]}${MISS_SQUARE}\n${SITE_URL}`);
+    expect(line).toBe(`NYLON RARE #12: 385\n${TIER_SQUARES[6]}${TIER_SQUARES[6]}${TIER_SQUARES[5]}${TIER_SQUARES[4]}${TIER_SQUARES[3]}${TIER_SQUARES[2]}${MISS_SQUARE}\n${SITE_URL}`);
     expect([...line.split('\n')[1]!].length).toBe(7);
     expect(line.split('\n')[2]).toBe(SITE_URL);
   });
@@ -24,7 +24,7 @@ describe('share line', () => {
   });
 
   it('scores 0 and seven misses when nothing was right', () => {
-    expect(shareLine(1, Array.from({ length: 7 }, () => res(null)))).toBe(`Deep Cut #1: 0\n${MISS_SQUARE.repeat(7)}\n${SITE_URL}`);
+    expect(shareLine(1, Array.from({ length: 7 }, () => res(null)))).toBe(`NYLON RARE #1: 0\n${MISS_SQUARE.repeat(7)}\n${SITE_URL}`);
   });
 });
 
@@ -35,7 +35,7 @@ describe('the site address in the share line', () => {
   });
 
   it('can be given another address', () => {
-    expect(shareLine(3, [res(1)], 'https://example.org')).toMatch(/\nhttps:\/\/example\.org$/);
+    expect(shareLine(3, [res(1)], 'rare', 'https://example.org')).toMatch(/\nhttps:\/\/example\.org$/);
   });
 });
 
@@ -54,5 +54,13 @@ describe('copyText', () => {
     await expect(copyText('x')).resolves.toBe(false);
     vi.stubGlobal('navigator', { clipboard: { writeText: async () => { throw new Error('denied'); } } });
     await expect(copyText('x')).resolves.toBe(false);
+  });
+});
+
+describe('the share line names the game and the mode', () => {
+  it('starts with NYLON, the mode, the dive number and the score', () => {
+    const results = [res(1), res(2), res(3), res(4), res(5), res(6), res(null)];
+    expect(shareLine(12, results, 'rare').split('\n')[0]).toMatch(/^NYLON RARE #12: \d+$/);
+    expect(shareLine(12, results, 'common').split('\n')[0]).toMatch(/^NYLON COMMON #12: \d+$/);
   });
 });

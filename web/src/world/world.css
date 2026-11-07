@@ -1,0 +1,199 @@
+/*
+ * The moon world: a full-screen pixel scene (canvas layers, drawn once) with HTML on top for the ball, the gauge and the ruler.
+ * Flat and hard-edged: no glow, no blur, no gradients. Only transform and opacity animate.
+ */
+.world {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: #0a060c;
+  pointer-events: none;
+  user-select: none;
+}
+
+.world__scene {
+  position: absolute;
+  overflow: hidden;
+}
+
+.world__layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.world__stars--0 { animation: world-twinkle 3.1s steps(2, end) infinite; }
+.world__stars--1 { animation: world-twinkle 4.3s steps(2, end) -1.2s infinite; }
+.world__stars--2 { animation: world-twinkle 5.2s steps(2, end) -2.6s infinite; }
+.world__crowd--0 { animation: world-shimmer 1.6s steps(1, end) infinite; }
+.world__crowd--1 { animation: world-shimmer 1.6s steps(1, end) -0.8s infinite; }
+
+.world__clouds {
+  position: absolute;
+  left: 0;
+  top: 0;
+  animation: world-drift 150s linear infinite;
+}
+
+.world__sat {
+  position: absolute;
+  left: 0;
+  background: #a8a8a8;
+  box-shadow: 0 0 0 0 transparent;
+  animation: world-cross 38s linear infinite;
+}
+
+.world__sat--b { background: #f4ead6; animation-duration: 61s; animation-delay: -24s; }
+
+@keyframes world-twinkle { 0% { opacity: 1; } 50% { opacity: 0.25; } 100% { opacity: 1; } }
+@keyframes world-shimmer { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes world-drift { from { transform: translateX(0); } to { transform: translateX(var(--loop)); } }
+@keyframes world-cross { from { transform: translateX(-60px); } to { transform: translateX(calc(100vw + 60px)); } }
+
+/* level lines and the guide */
+.world__lines { position: absolute; inset: 0; }
+.world__line { stroke: #f4ead6; stroke-opacity: 0.22; stroke-width: 2; stroke-dasharray: 8 8; }
+.world__guide { stroke: #f4ead6; stroke-opacity: 0.28; stroke-width: 2; stroke-dasharray: 2 8; }
+
+/* the depth gauge on the left */
+.world__gauge {
+  position: absolute;
+  left: 0;
+  width: 214px;
+  background: rgba(10, 10, 10, 0.82);
+  border-right: 4px solid #ff6a13;
+}
+
+.world__row {
+  position: absolute;
+  left: 12px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 30px;
+  font-family: var(--font-display);
+  line-height: 1;
+}
+
+.world__chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  font-size: 12px;
+}
+
+.world__name { flex: 1; color: #f4ead6; font-size: 10px; }
+.world__pts { color: #ffb347; font-size: 9px; }
+
+.world__mode {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  margin: 0;
+  padding: 8px 12px;
+  background: #0a0a0a;
+  border: 4px solid #ff6a13;
+  color: #f4ead6;
+  font-family: var(--font-display);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+/* the ruler on the right edge */
+.world__ruler { position: absolute; top: 0; bottom: 0; width: 70px; }
+.world__rule { position: absolute; right: 0; width: 0; border-right: 3px dotted #a8a8a8; }
+.world__tick { position: absolute; right: -4px; width: 12px; height: 2px; background: #a8a8a8; margin-top: -1px; }
+.world__ghost { position: absolute; display: flex; align-items: center; gap: 3px; margin-top: -7px; }
+.world__ghost b { font-family: var(--font-display); font-size: 8px; font-weight: 400; }
+.world__you {
+  position: absolute;
+  top: 0;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: -7px;
+  transition: transform 700ms ease-in-out;
+}
+.world__you b { color: #ff6a13; font-family: var(--font-display); font-size: 9px; font-weight: 400; }
+
+/* the ball */
+.world__ball {
+  position: absolute;
+  top: 0;
+  transition: transform 700ms ease-in-out;
+  will-change: transform;
+}
+
+.world__ball svg { display: block; }
+
+.world__streaks { position: absolute; left: 0; right: 0; height: 0; opacity: 0; }
+.world__streaks i { position: absolute; top: 0; width: 3px; height: 26px; background: #ffb347; }
+.world__streaks i:nth-child(1) { left: 22%; }
+.world__streaks i:nth-child(2) { left: 46%; height: 34px; background: #ff6a13; }
+.world__streaks i:nth-child(3) { left: 70%; }
+.world__ball.is-moving.is-rising .world__streaks { top: 100%; opacity: 1; animation: world-streak 0.3s steps(3, end) infinite; }
+.world__ball.is-moving.is-falling .world__streaks { bottom: 100%; opacity: 1; animation: world-streak 0.3s steps(3, end) infinite; }
+.world__ball.is-moving.is-falling .world__streaks i { top: auto; bottom: 0; }
+
+@keyframes world-streak { 0% { transform: scaleY(1); } 50% { transform: scaleY(0.5); } 100% { transform: scaleY(1); } }
+
+.world__ball.is-shaking { animation: world-shake 0.5s steps(1, end) 1; }
+@keyframes world-shake {
+  0%, 100% { margin-left: 0; }
+  20% { margin-left: -10px; }
+  40% { margin-left: 10px; }
+  60% { margin-left: -6px; }
+  80% { margin-left: 6px; }
+}
+
+/* the celebration at the end level */
+.world__fx { position: absolute; width: 0; height: 0; }
+.world__flash { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); background: #ff6a13; opacity: 0; animation: world-flash 0.5s steps(1, end) var(--delay) 1 both; }
+.world__ripple { position: absolute; left: 0; transform: translateX(-50%); border-left: 3px solid #f4ead6; border-right: 3px solid #f4ead6; opacity: 0; animation: world-ripple 0.6s steps(4, end) var(--delay) 1 both; }
+.world__bit { position: absolute; left: 0; top: 0; width: 8px; height: 8px; background: #ff6a13; opacity: 0; animation: world-burst 0.9s steps(6, end) var(--delay) 1 both; }
+.world__bit--1 { background: #ffb347; }
+.world__bit--2 { background: #f4ead6; width: 6px; height: 6px; }
+
+@keyframes world-flash { 0% { opacity: 1; } 34% { opacity: 0; } 67% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes world-ripple { 0% { opacity: 1; transform: translateX(-50%) scaleX(1); } 50% { opacity: 1; transform: translateX(-50%) scaleX(0.6); } 100% { opacity: 0; transform: translateX(-50%) scaleX(1); } }
+@keyframes world-burst {
+  0% { opacity: 1; transform: translate(0, 0); }
+  70% { opacity: 1; transform: translate(var(--dx), var(--dy)); }
+  100% { opacity: 0; transform: translate(var(--dx), calc(var(--dy) + 30px)); }
+}
+
+/* a phone: only the ruler, no gauge; the ball column stays in view */
+.world.is-narrow .world__line { stroke-opacity: 0.16; }
+.world.is-narrow .world__ruler { width: 60px; }
+
+/* a skipped result jumps to its end */
+.world.is-skipped .world__ball,
+.world.is-skipped .world__you { transition-duration: 0ms !important; }
+
+/* reduced motion: instant moves, nothing ambient */
+.world.is-reduced .world__stars--0,
+.world.is-reduced .world__stars--1,
+.world.is-reduced .world__stars--2,
+.world.is-reduced .world__crowd,
+.world.is-reduced .world__clouds,
+.world.is-reduced .world__sat,
+.world.is-reduced .world__streaks,
+.world.is-reduced .world__ball.is-shaking { animation: none !important; }
+.world.is-reduced .world__crowd--1 { display: none; }
+.world.is-reduced .world__ball,
+.world.is-reduced .world__you { transition: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .world__stars--0, .world__stars--1, .world__stars--2, .world__crowd, .world__clouds, .world__sat, .world__streaks, .world__ball.is-shaking, .world__flash, .world__ripple, .world__bit { animation: none !important; }
+  .world__crowd--1 { display: none; }
+  .world__ball, .world__you { transition: none !important; }
+  .world__bit, .world__flash, .world__ripple { display: none !important; }
+}

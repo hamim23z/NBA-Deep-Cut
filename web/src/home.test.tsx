@@ -2,30 +2,18 @@ import { render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { Home } from './components/Home';
-import { Wordmark } from './components/Wordmark';
 import { MOCK_OUTSIDE_RANGE_NAMES } from './outsideRange';
 import { PROMPTS_PATH, UNIVERSE_PATH, readJson } from './testUtils';
 
-describe('the wordmark', () => {
-  it('is the page heading, read as "NBA Deep Cut", with the letters as decoration', () => {
-    const { container } = render(<Wordmark />);
-    const h1 = screen.getByRole('heading', { level: 1, name: 'NBA Deep Cut' });
-    expect(h1).toBeInTheDocument();
-    const letters = container.querySelectorAll('.wordmark__letter');
-    expect(letters).toHaveLength(10); // N B A D E E P C U T
-    expect([...letters].map((l) => l.textContent).join('')).toBe('NBADEEPCUT');
-    letters.forEach((l, i) => expect(l.getAttribute('style')).toContain(`--i: ${i}`)); // each drops a little after the one before
-  });
-});
-
 describe('the home screen', () => {
-  const props = { number: 12, played: false, streaks: { current: 3, best: 5 }, streakUp: false, saving: true, onPlay: vi.fn(), onResults: vi.fn(), onArchive: vi.fn(), onHowTo: vi.fn() };
+  const props = { number: 12, mode: 'rare' as const, onMode: vi.fn(), played: false, streaks: { current: 3, best: 5 }, saving: true, onPlay: vi.fn(), onResults: vi.fn(), onArchive: vi.fn(), onHowTo: vi.fn() };
 
-  it('has the wordmark, a tagline, a big play button, archive, how to play, and both streaks', () => {
+  it('has the NYLON title as the page heading, a tagline, a big play button, archive, how to play, and both streaks', () => {
     render(<Home {...props} />);
-    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
-    expect(screen.getByText(/daily basketball trivia game where the obvious answer loses/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Play today.s dive$/ })).toHaveClass('primary--big');
+    expect(screen.getByRole('heading', { level: 1, name: 'NYLON' })).toBeInTheDocument();
+    expect(screen.getByText('CLIMB TO THE MOON. OR SINK FROM IT.')).toBeInTheDocument();
+    expect(screen.getByText('THE DAILY BASKETBALL SHOT')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'PLAY RARE SHOT' })).toHaveClass('primary--big');
     expect(screen.getByRole('button', { name: 'Archive' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'How to play' })).toBeInTheDocument();
     expect(screen.getByTestId('streak-current')).toHaveTextContent('3 days');
@@ -33,10 +21,26 @@ describe('the home screen', () => {
     expect(screen.getByText('#12')).toBeInTheDocument();
   });
 
-  it('offers View results instead of Play when today is already played', () => {
+  it('has two mode cards, the chosen one selected, and a button that names the mode', async () => {
+    const onMode = vi.fn();
+    const { default: userEvent } = await import('@testing-library/user-event');
+    render(<Home {...props} mode="common" onMode={onMode} />);
+    const group = screen.getByRole('radiogroup', { name: 'Mode' });
+    const [rare, common] = within(group).getAllByRole('radio');
+    expect(rare).toHaveAttribute('aria-checked', 'false');
+    expect(common).toHaveAttribute('aria-checked', 'true');
+    expect(common).toHaveClass('mode-card--on');
+    expect(screen.getByText('Start on the moon. The rarer your answer, the deeper you sink.')).toBeInTheDocument();
+    expect(screen.getByText('Start at the rim. The more famous your answer, the higher you climb.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'PLAY COMMON SHOT' })).toBeInTheDocument();
+    await userEvent.setup().click(rare!);
+    expect(onMode).toHaveBeenCalledWith('rare');
+  });
+
+  it('offers View results instead of Play when today is already played in this mode', () => {
     render(<Home {...props} played />);
-    expect(screen.getByRole('button', { name: 'View results' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Play today/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'VIEW RARE RESULTS' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^PLAY/ })).not.toBeInTheDocument();
   });
 
   it('uses text only: no images, no logos', () => {
@@ -58,20 +62,20 @@ describe('every screen', () => {
     const { default: userEvent } = await import('@testing-library/user-event');
     const user = userEvent.setup();
     render(<App now={() => new Date('2026-11-04T17:00:00Z')} search="" storage={null} />);
-    const home = await screen.findByRole('button', { name: /^Play today/ });
+    const home = await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ });
     expect(home).toBeInTheDocument();
     expect(screen.getByText('Unofficial fan game. Not affiliated with the NBA.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Archive' }));
     expect(within(document.querySelector('main')!).getByText('Unofficial fan game. Not affiliated with the NBA.')).toBeInTheDocument();
   });
 
-  it('has exactly one h1: the wordmark on home, a hidden one on the other screens', async () => {
+  it('has exactly one h1: the title on home, a hidden one on the other screens', async () => {
     const { default: userEvent } = await import('@testing-library/user-event');
     const user = userEvent.setup();
     render(<App now={() => new Date('2026-11-04T17:00:00Z')} search="" storage={null} />);
-    await screen.findByRole('button', { name: /^Play today/ });
+    await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ });
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-    expect(screen.getByRole('heading', { level: 1 })).toHaveAccessibleName('NBA Deep Cut');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveAccessibleName('NYLON');
     await user.click(screen.getByRole('button', { name: 'Archive' }));
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });

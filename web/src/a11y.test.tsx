@@ -15,7 +15,7 @@ const prompts: Prompt[] = Array.from({ length: 7 }, (_, i) => ({ id: `p-${i}`, a
 
 describe('tiers are never told by color alone', () => {
   it('has a number or a mark in every results square', () => {
-    render(<Final prompts={prompts} results={seven([1, 2, 3, 4, 5, 6, null])} diveNumber={1} headingRef={null} onHome={() => undefined} onArchive={() => undefined} onHowTo={() => undefined} />);
+    render(<Final prompts={prompts} results={seven([1, 2, 3, 4, 5, 6, null])} diveNumber={1} mode="rare" best={0} headingRef={null} onHome={() => undefined} onArchive={() => undefined} onHowTo={() => undefined} onOtherMode={() => undefined} />);
     const squares = within(screen.getByRole('list', { name: 'Your seven answers' })).getAllByRole('listitem');
     expect(squares.map((s) => s.querySelector('.square__tier')?.textContent)).toEqual(['1', '2', '3', '4', '5', '6', '×']);
     for (const s of squares) expect(s.getAttribute('aria-label')).toMatch(/^Prompt \d: (tier \d, \d+ points|not a valid answer, 0 points)/);
@@ -23,28 +23,28 @@ describe('tiers are never told by color alone', () => {
 
   it('has a number in every square of the archive strip', () => {
     const history: History = { 1: { results: seven([6, 5, 4, 3, 2, 1, null]), daily: true } };
-    render(<Archive today={1} history={history} saving onPlay={() => undefined} onResults={() => undefined} onBack={() => undefined} />);
+    render(<Archive today={1} mode="rare" onMode={() => undefined} history={history} saving onPlay={() => undefined} onResults={() => undefined} onBack={() => undefined} />);
     const strip = screen.getByRole('list', { name: 'Dive 1 answers' });
     expect(within(strip).getAllByRole('listitem').map((s) => s.textContent)).toEqual(['6', '5', '4', '3', '2', '1', '×']);
   });
 
-  it('names the tier in words on the reveal (the tier name and "Tier N: P points")', () => {
-    render(<Reveal prompt={prompts[0]!} result={res(0, 4)} isLast={false} headingRef={null} onNext={() => undefined} skipped onSkip={() => undefined} />);
+  it('names the tier in words on the reveal (the level, its pick and "Tier N: P points")', () => {
+    render(<Reveal prompt={prompts[0]!} mode="rare" result={res(0, 4)} isLast={false} headingRef={null} onNext={() => undefined} skipped onSkip={() => undefined} />);
     expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Tier 4: 55 points');
-    expect(screen.getByText('All-Star')).toBeInTheDocument();
+    expect(screen.getByText('ROTATION PICK')).toBeInTheDocument(); // the level and its pick, in words
   });
 });
 
 describe('structure', () => {
   it('has an h2 before the result heading on the reveal, so the heading levels never skip', () => {
-    render(<Reveal prompt={prompts[0]!} result={res(0, 1)} isLast={false} headingRef={null} onNext={() => undefined} skipped onSkip={() => undefined} />);
+    render(<Reveal prompt={prompts[0]!} mode="rare" result={res(0, 1)} isLast={false} headingRef={null} onNext={() => undefined} skipped onSkip={() => undefined} />);
     const levels = screen.getAllByRole('heading').map((h) => Number(h.tagName.slice(1)));
     expect(levels[0]).toBe(2);
     for (let i = 1; i < levels.length; i++) expect(levels[i]! - levels[i - 1]!).toBeLessThanOrEqual(1);
   });
 
   it('labels the total on the results and the archive with a role that allows a name', () => {
-    render(<Final prompts={prompts} results={seven([1, 1, 1, 1, 1, 1, 1])} diveNumber={1} headingRef={null} onHome={() => undefined} onArchive={() => undefined} onHowTo={() => undefined} />);
+    render(<Final prompts={prompts} results={seven([1, 1, 1, 1, 1, 1, 1])} diveNumber={1} mode="rare" best={0} headingRef={null} onHome={() => undefined} onArchive={() => undefined} onHowTo={() => undefined} onOtherMode={() => undefined} />);
     expect(screen.getByRole('group', { name: 'Total 70 out of 700' })).toBeInTheDocument();
   });
 });
@@ -59,7 +59,7 @@ describe('the page', () => {
   it('stops animating under prefers-reduced-motion, apart from a plain fade', () => {
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)/);
     expect(css).toMatch(/animation-duration:\s*0\.01ms !important/);
-    expect(css).toMatch(/\.particle,[^{]*\.confetti[^{]*{\s*display:\s*none !important/);
+    expect(css).toMatch(/\.shotclock--danger \.shotclock__digits\s*{\s*animation:\s*none !important/);
   });
 
   it('never lets the slide-in make the page scroll sideways', () => {

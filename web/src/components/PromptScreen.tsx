@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useAnnounce } from '../announcer';
-import { useChartStore } from '../chart/chartStore';
 import { resolveEntry, resolveText, timeoutResult } from '../answer';
+import { MODE_HINT, type Mode } from '../modes';
 import type { Index } from '../matching';
 import { SECONDS_PER_PROMPT } from '../tiers';
 import type { Entry, Prompt, PromptResult } from '../types';
@@ -11,6 +11,7 @@ import { PromptText } from './PromptText';
 
 interface Props {
   prompt: Prompt;
+  mode: Mode;
   index: Index;
   outsideNames?: readonly string[];
   /** How much of the 25 seconds has already gone (a reload in the middle of the prompt). */
@@ -20,9 +21,8 @@ interface Props {
 
 const WARNINGS = [10, 5];
 
-export function PromptScreen({ prompt, index, outsideNames, elapsedMs = 0, onResult }: Props) {
+export function PromptScreen({ prompt, mode, index, outsideNames, elapsedMs = 0, onResult }: Props) {
   const announce = useAnnounce();
-  const chart = useChartStore();
   const typed = useRef('');
   const done = useRef(false);
 
@@ -37,11 +37,6 @@ export function PromptScreen({ prompt, index, outsideNames, elapsedMs = 0, onRes
 
   const remainingMs = useCountdown(SECONDS_PER_PROMPT, () => finish(timeoutResult(prompt, typed.current)), elapsedMs);
   const seconds = Math.ceil(remainingMs / 1000);
-
-  // the shot clock on the chart follows the same count
-  useEffect(() => {
-    chart.set({ clock: seconds });
-  }, [seconds, chart]);
 
   useEffect(() => {
     if (WARNINGS.includes(seconds) && seconds < SECONDS_PER_PROMPT) announce(`${seconds} seconds left`);
@@ -91,6 +86,7 @@ export function PromptScreen({ prompt, index, outsideNames, elapsedMs = 0, onRes
         onSubmitText={submitText}
         onPick={(entry, text) => finish(resolveEntry(prompt, entry, text))}
       />
+      <p className="prompt-card__hint">{MODE_HINT[mode]}</p>
     </section>
   );
 }
