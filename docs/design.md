@@ -1,55 +1,50 @@
-# Design notes: the panel and the shot chart
+# Design notes: NYLON and the moon world
 
-Deep Cut is one place, not a set of screens. A flat shot chart is on screen from the first moment and stays mounted while the player moves between home, a prompt, the reveal, the results, the archive and how to play. The panel next to it carries every word and number; the chart is decoration (its SVG is `aria-hidden`) that turns each answer into a shot.
+NYLON is one place: a full-screen pixel-art world that stays on screen from the first moment and never reloads while the player moves between home, a prompt, the result, the results, the archive and how to play. A card floats over it (a sheet at the bottom on a phone). The world is decoration (`aria-hidden`); the HUD and the card carry every word and number, and a polite live line says each result.
 
-The look is flat and hard-edged, in black and orange: no gradients that blend, no blur, no glow, no raster images. The panel keeps its notched borders and hard shadows; the chart is plain SVG shapes.
+The look is black and orange, hard-edged pixel art: boxes are near-black (`#0A0A0A`, about 90% opaque) with a 4px orange border, shadows are hard offsets, motion is stepped or eased on transform and opacity only. No glow, no blur, no gradients on the UI (the sky is dithered steps in the pixel scene), no rounded corners, no image files. A test checks the stylesheets.
 
-## Layout
+## The world (`web/src/world/`)
 
-- **900 px and wider:** a split screen. The panel (questions, controls, results) is on the left; the chart fills the right half of the viewport (background `#060606`) and stays in place while the panel scrolls. `web/src/layout.ts` holds the breakpoint; the CSS switches on the same width.
-- **Below 900 px:** the chart is above the panel, at most 60% of the screen height (its shape is 688 : 860). When a result or the results screen appears, the page scrolls back to the top so the shot is never played out of sight.
-- The page order is the panel first and the chart after it, so a screen reader reads the questions first.
+- **Drawn once, in code.** `scene.ts` fills RGBA buffers on a **360 x 215** grid (the static scene, the clouds, three star layers, two crowd-shimmer layers); `World.tsx` puts each buffer on a canvas with `putImageData`, scaled with `image-rendering: pixelated`. Nothing is redrawn per frame: the ambient motion is CSS on whole layers (stars fade, clouds slide, the crowd shimmers between two layers, two satellites cross).
+- **Top to bottom:** a dithered night sky (`#0A060C` to `#1E1620`) with stars; the **moon** at (132, 22), radius 16, off-white with craters, with a **hoop** under it (an orange rim at rows 36 to 38 and a small white net); pixel clouds; an arena **roof** at rows 128 to 135 with an opening above the ball column; **rafters**; retired-number **banners** (orange and cream, numbers from a 3 x 5 pixel font) across the width except the ball column; a dithered **crowd**; a hardwood **floor** from row 203 with a cream baseline; and the **arena hoop** at the ball column (backboard, orange rim at row 183, net, grey stanchion). A faint dotted guide runs down column 132.
+- **Where the grid sits (`sceneMetrics`).** On a wide screen the grid fills the screen (the larger of the two scales, centred; exactly 4 pixels per cell at 1440 x 860), but never so far up that the moon's level line runs under the HUD. On a phone (under 700 px) the grid is sized to the part between the HUD (96 px) and the bottom sheet (46% of the height), and the ball column is kept at about 30% across.
 
-## The shot chart (`web/src/chart/`)
+## Levels and modes
 
-One inline SVG, `viewBox="0 0 688 860"`, 11.2 units per foot, the basket at the top.
+| Level | Row | Altitude | Pick | Tier | RARE pays | COMMON pays |
+| --- | --- | --- | --- | --- | --- | --- |
+| MOON | 24 | 3,200 ft | FRANCHISE | 1 | 10 | 100 |
+| ORBIT | 60 | 2,400 ft | ALL-STAR | 2 | 20 | 75 |
+| CLOUDS | 94 | 1,800 ft | STARTER | 3 | 35 | 55 |
+| ROOF | 128 | 1,100 ft | ROTATION | 4 | 55 | 35 |
+| RAFTERS | 162 | 500 ft | BENCH | 5 | 75 | 20 |
+| RIM | 190 | 60 ft | DEEP CUT | 6 | 100 | 10 |
 
-- **Court:** a rectangle at (96, 104), 560 x 526.4; the lane; the free-throw circle (top half solid, bottom half dashed); the restricted-area arc; the three-point line (straight sides to y = 263, then a 266-unit arc about the hoop); the half-court arc at the bottom; the backboard line and the rim (radius 8.4) at (376, 162.8). Lines are cream, 3 wide, square caps.
-- **Rarity zones:** concentric filled circles about the hoop, clipped to the court, in very dark warm tones (warmest nearest the basket), with dashed grey rings at the boundaries: T1 under 112 units from the hoop, T2 to 190.4, T3 to 266, T4 to 358.4, T5 to 440, T6 to 467.
-- **Depth gauge:** left of the court, a line at x = 84 with a tick at every boundary, and for each tier a square with its number and the points beside it (10, 20, 35, 55, 75, 100), in the middle of its band.
-- **Markers:** one 22-unit square per answer in the tier colour, with the tier number, a hard black offset shadow and a dashed line from the hoop. The latest answer has a dashed cream ring (radius 26). A wrong or late answer is a grey square with an X in the **airball zone** (a dashed rectangle under the court, three slots across and two deep; more misses wrap round, a little to the right).
-- **Placement** (`placement.ts`): the angle and the distance come from a hash of the prompt id and the dive number (the dive number stands for the dive's date), so a dive always looks the same. The distance is inside the tier's band and off its edges, the angle is 20 to 160 degrees below the hoop, the marker and its ring stay on the court, and no two markers (or a marker and the waiting ball) are closer than 34 units. Markers are placed in prompt order, so an earlier one never moves when a later answer is added.
-- **Header and readouts:** "SHOT CHART" in Press Start 2P, the tagline "Rarer answer = deeper shot." in VT323, and the clock and points from the same store the panel publishes (no second timer). Under the airball zone, three boxes: SHOTS (made / total), POINTS and BEST SHOT (tier and points).
-- **Home:** no markers, the ball at the bottom, and a "TODAY'S DIVE #N / 7 PROMPTS" box over the court. Other idle screens show their name in the same box.
+The most famous answers (tier 1) are always on the moon; the mode decides what that is worth (`pointsFor(mode, tierIdx)` in `modes.ts`). RARE starts the ball on the moon and sinks, COMMON starts at the rim and climbs. A wrong, empty or late answer leaves the ball where it is, shakes it, and the card says AIRBALL and +0. Reaching the end level (RIM in RARE, MOON in COMMON) sets off a pixel confetti burst, a flash of that hoop, a ripple of its net, and the existing top-tier sound.
 
-The panel and the chart talk through a tiny store (`chartStore.tsx`): the panel publishes what is on (the question number, the points, the seconds left, the answers so far, the shot, the skip) and the chart draws it.
+## Screens
 
-## Animation
-
-CSS only, and only `transform` and `opacity`.
-
-- **A correct answer:** a ball (orange, black seams) flies in an arc from the bottom centre to its marker (x moves with ease-out, y rises and falls); the marker pops in when it lands (scale 0.6 to a peak to 1), the target band pulses once, and the tier colour flashes behind the points readout. A rarer tier flies longer (590 ms for T1 to 940 ms for T6), arcs higher and pops bigger. **T6** also gets a brief white flash over the court and a short "DEEP CUT" stamp.
-- **A wrong or late answer:** the ball falls short into the airball zone, bounces, and the X appears.
-- **Replay:** the results screen shows all seven markers, popping in one after another (480 ms apart, in step with the squares on the left).
-- **Skip:** a tap or Enter jumps to the end state. **Reduced motion:** no flight, pulse, flash or stamp; the marker only fades in.
-- The existing sound effects are called as before.
+- **Home:** the world behind with the ball at the mode's start; on the right "THE DAILY BASKETBALL SHOT", a big NYLON (Press Start 2P, a hard shadow in deep orange), the tagline, two mode cards (the chosen one has the orange border), a full-width "PLAY RARE SHOT" or "PLAY COMMON SHOT", Archive, How to play and the streaks.
+- **A prompt:** the HUD (NYLON chip, boxed ALTITUDE in feet, seven prompt pips coloured by tier with their numbers, boxed SCORE, sound), the depth gauge at the left (six rows, each a tier chip, the level name and its points, on the level's own line), dashed level lines across the scene, the mode chip at the bottom left, a dotted ruler at the right edge with an orange YOU arrow at the ball's level and small ghost balls for earlier answers, and the question card: the timer (a number and a striped bar), the era in orange, the question in large VT323 with its first letter capitalised (display only), the answer box and a one-line mode hint.
+- **After an answer:** the ball moves to its level (700 ms for a step, up to 1,000 ms for the whole way, eased in and out; speed streaks trail it) and the card turns into a result card with a border in the tier's colour: the level, its pick, the answer in quotes, "+75 PTS · sink to 2,400 ft", a line of flavour, and SINK or CLIMB to go on. The answer stays in a focused read-only input: Enter goes on (armed a moment after the card appears, so the Enter that submitted the answer does not count), Tab reaches the button. A tap skips the move. The famous and rare answers are in a closed section.
+- **Results:** the ball on its final level, the total, the final altitude, the best score in this mode, the streak, a tier breakdown, the share text (NYLON, mode, dive number, score, seven tier squares, the address), "Play the other mode" and a link to the archive.
+- **A phone (390 x 844):** the left gauge is hidden (the right ruler stays), the HUD shrinks to chips, the question card becomes a bottom sheet whose height never changes, the suggestions open upwards, and there is no horizontal scroll.
 
 ## Type and colour
 
-Press Start 2P for headings, numbers and buttons; VT323 for prompt text, answers, the input and body copy. Both are self-hosted through `@fontsource`.
-
-Palette: ink `#0a0a0a`, panel `#141414`, line `#3a3a3a`, orange `#ff6a13`, amber `#ffb347`, danger red `#ff3b1f`, cream `#f4ead6`, muted `#a8a8a8`, deep orange `#8a3c0a`. Tier colours, the same on the chart, the reveal, the results squares, the archive strips and the chips: 1 `#6e6e6e`, 2 `#a8a8a8`, 3 `#ededed`, 4 `#ffb020`, 5 `#ff6a13`, 6 `#ff3b1f`. Text on tier 1 is white, on the rest ink, so every pair is at least 4.5 : 1. A tier is never told by colour alone: every square, chip and marker has its number.
+Press Start 2P for headings, numbers and labels; VT323 for body text, the question and the input. Palette: ink `#0A0A0A`, orange `#FF6A13`, amber `#FFB347`, red `#FF3B1F`, cream `#F4EAD6`, greys `#A8A8A8`, `#6E6E6E`, `#3A3A3A`. Tier colours: 1 `#6E6E6E`, 2 `#A8A8A8`, 3 `#EDEDED`, 4 `#FFB020`, 5 `#FF6A13`, 6 `#FF3B1F`; the number is always shown with the colour (chips, pips, squares, the gauge), white text on tier 1 and ink on the rest, and the level name of tier 1 is drawn in `#A8A8A8` on the card. All text is at least 4.5 : 1 (`nylonText.test.tsx` computes it).
 
 ## Accessibility
 
-The SVG is `aria-hidden`. A visually hidden `aria-live="polite"` line next to it says each result ("Tier 3, 35 points, 55 total", or "Airball, 0 points, 55 total"). Everything on the chart is also in the panel. On a phone the small text is made larger in CSS, because the picture is about 0.55 of its size.
+The world is `aria-hidden`. A visually hidden `aria-live="polite"` line next to it says each result ("ORBIT, 75 points, 185 total", or "AIRBALL, 0 points, 0 total"). The HUD's altitude, prompt pips and score are real text and read from the same store the world reads (one source of truth, no second timer). Keyboard play: the input, Answer, then on the result the kept answer input (Enter goes on) and the next button. Reduced motion: moves are instant, nothing ambient runs, there is no celebration, and the streaks and shake are off.
 
 ## Self-critique rounds
 
-Screenshots of home, prompt 1 and 7, a correct answer, an airball, the T6 flash and the results, at 1440 x 860 and 390 x 844 (`docs/screenshots/chart/`).
+Screenshots at 1440 x 860, 1280 x 720 and 390 x 844 of home, a RARE prompt and answer, a COMMON prompt and answer, an airball, the end-level celebration and the results (`docs/screenshots/nylon/`), judged against: the scene fills the screen, nothing overlaps the moon, the ball column or the HUD, the gauge rows sit on the level lines, the card never covers the ball, text is readable, no horizontal scroll, no glow, gradient UI or rounded cards.
 
-**Round 1.** Found: on a phone the page scrolled to the result heading and the chart left the screen, so the shot was missed; a tier-4 marker sat on the court line with its ring outside it; the "100" of the gauge touched the axis; five tier-1 markers on the results screen carried a ring over the cluster; the pulse of a zone was a strong tan band; the zone tones were too close to tell apart. Fixed: the chart scrolls back into view on a phone, markers keep their ring on the court, the gauge text is smaller, the ring is only for the live shot, the pulse is lighter, and the zone tones are further apart.
+**Round 1.** Found: the results card was taller than the screen and, centred in a flex column, its top was cut off and unreachable; the card covered the YOU arrow on the ruler; the answer text was selected in orange; the ball (a cross of seams) read like a crosshair on the moon; the crowd and stars were too orange and busy; the "▶" on the button was a tiny fallback glyph; on a phone the ball was 15 px and the ghost balls sat on the YOU label; at 1280 x 720 the moon's gauge row ran under the HUD, the mode chip sat on the rim row, and the home card was taller than the window. Fixed: the stage no longer centres with `justify-content` (auto margins instead), the results' answer list is a closed section and the breakdown is two columns, the card keeps 104 px from the right edge, no selection, a ball with a cross and two curved seams, a darker crowd and fewer stars, an enlarged arrow glyph, a 30 px ball and ghost balls on the ruler's line on a phone, a scene offset that keeps the moon line 70 px from the top, a smaller bottom-left chip, a compact HUD, and a tightened home card on short screens.
 
-**Round 2.** Rechecked every state at both sizes: no horizontal scroll, no overlapping labels, no marker outside the court, the gauge ticks on the band rings, the left panel unchanged except the capital on the question. Nothing more failed.
+**Round 2.** Rechecked every state at all three sizes: no horizontal scroll, no marker or label on the moon, nothing over the ball column, the gauge rows on their lines, the card clear of the ball. Axe found nothing on home, a prompt, a result, the results, the archive and how to play (desktop and phone), a keyboard-only dive ran with no console errors, and no animation ran under reduced motion.
 
-**Limits, honestly.** On a phone the picture is about 0.55 of its size, so the gauge and the stats are small even after being enlarged; five or more tier-1 markers sit close together near the basket because that zone is small; the page is 9 px taller than a 860 px window (a margin in the panel, as before), so the whole page can scroll by that much; focus goes to the result heading after an answer (as before) and to the next question's input, not to the same input.
+**Limits, honestly.** The speed streaks follow the real direction of the move (below the ball when it rises, above it when it falls), which in COMMON and RARE matches the brief on the first move but can differ later, because every answer sends the ball to its own level from wherever it is. On a window shorter than about 700 px the results card scrolls inside its frame. The share emoji use the same six tier squares as before (⬛ is a miss), and emoji have a limited palette. On a phone the scene is cropped around the ball column, so the left of the arena is not seen.

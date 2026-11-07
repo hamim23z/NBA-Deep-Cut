@@ -1,6 +1,6 @@
-# Deploying Deep Cut on Vercel
+# Deploying NYLON on Vercel
 
-Deep Cut is a static site: `web/` builds to `web/dist` and needs no server, database or environment variables. The three data files it reads (`prompts.json`, `universe.json`, `outside_range.json`) are committed in `web/public/`, so the build needs only the contents of `web/`.
+NYLON is a static site: `web/` builds to `web/dist` and needs no server, database or environment variables. The three data files it reads (`prompts.json`, `universe.json`, `outside_range.json`) are committed in `web/public/`, so the build needs only the contents of `web/`.
 
 ## Before the first deploy
 
@@ -47,7 +47,7 @@ Run this on the real URL, on a phone and on a desktop:
 - [ ] The home screen loads, with the right dive number for today in New York time (before launch: "Coming soon" with the launch date).
 - [ ] `/?preview=1` before launch shows a Play-test, and a test play is not saved.
 - [ ] Play a full dive: answers score, the shot animations play, Enter skips a shot, the results screen shows the total and the share button.
-- [ ] Copy result: the pasted text is `Deep Cut #N: score`, seven squares and the live address (`https://nba-deep-cut.vercel.app`, not another address).
+- [ ] Copy result: the pasted text is `NYLON RARE #N: score` (or COMMON), seven squares and the live address (`https://nba-deep-cut.vercel.app`, not another address).
 - [ ] Reload in the middle of a dive: it resumes at the next prompt with the same score.
 - [ ] Reload after finishing: it opens on the results screen. The archive lists past dives, and playing one does not change the streak.
 - [ ] Share the link in a chat app or a social post: the card shows the title, description and the social image.
