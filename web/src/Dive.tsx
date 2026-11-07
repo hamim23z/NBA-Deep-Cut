@@ -14,7 +14,6 @@ interface Props {
   index: Index;
   diveNumber: number;
   mode: Mode;
-  /** The best total in this mode on this device (before this dive). */
   bestBefore: number;
   outsideNames?: readonly string[];
   /** Called once, when the last prompt has been answered and the results screen appears. */
@@ -23,7 +22,6 @@ interface Props {
   onArchive: () => void;
   onHowTo: () => void;
   onOtherMode: (mode: Mode) => void;
-  /** Streak shown on the results screen. */
   streak?: { value: number };
   /** Resume a dive after a reload: the answers already given, and how much of the prompt on screen has gone. */
   resume?: { results: PromptResult[]; elapsedMs: number };
@@ -45,7 +43,7 @@ export function Dive({ prompts, index, diveNumber, mode, bestBefore, outsideName
   const firstRender = useRef(true);
   const finished = useRef(false);
   const world = useWorldStore();
-  const [skippedAt, setSkippedAt] = useState(-1); // the prompt whose move the player skipped
+  const [skippedAt, setSkippedAt] = useState(-1);
 
   const prompt = currentPrompt(state);
   const over = isOver(state);
@@ -62,7 +60,6 @@ export function Dive({ prompts, index, diveNumber, mode, bestBefore, outsideName
   const result = state.results[state.index];
   const points = useMemo(() => totalPoints(state.results), [state.results]);
 
-  // The results heading takes focus when the dive ends. (After an answer the card's own input keeps it; a new prompt focuses its input.)
   useEffect(() => {
     if (firstRender.current) {
       firstRender.current = false;
@@ -71,7 +68,6 @@ export function Dive({ prompts, index, diveNumber, mode, bestBefore, outsideName
     if (over) finalRef.current?.focus();
   }, [state.index, revealed, over]);
 
-  // The world follows the dive: the mode, which prompt, the points, the answers so far, and what is on.
   useEffect(() => {
     if (over) return;
     world.set({ mode, phase: revealed ? 'result' : 'prompt', promptNumber: Math.min(state.index + 1, state.prompts.length), total: state.prompts.length, points, diveNumber, marks: marksFrom(state.results), ...(revealed ? {} : { skipped: false }) });

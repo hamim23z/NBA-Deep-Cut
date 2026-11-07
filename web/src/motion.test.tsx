@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RollingNumber } from './components/RollingNumber';
 import { prefersReducedMotion, useReducedMotion } from './motion';
 
-
 function mockMatchMedia(reduce: boolean) {
   const listeners = new Set<() => void>();
   const query = { matches: reduce, addEventListener: (_: string, fn: () => void) => listeners.add(fn), removeEventListener: (_: string, fn: () => void) => listeners.delete(fn) };

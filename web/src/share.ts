@@ -11,7 +11,6 @@ export function squareFor(result: PromptResult): string {
   return result.tier === null ? MISS_SQUARE : TIER_SQUARES[result.tier];
 }
 
-/** The text a player copies: "NYLON RARE #12: 385", one square per prompt, and the address of the site. */
 export function shareLine(diveNumber: number, results: readonly PromptResult[], mode: Mode = 'rare', url: string = SITE_URL): string {
   return `NYLON ${MODE_LABEL[mode]} #${diveNumber}: ${totalPoints(results)}\n${results.map(squareFor).join('')}\n${url}`;
 }

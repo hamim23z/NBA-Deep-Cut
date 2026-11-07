@@ -6,7 +6,6 @@ import { clearDataCache } from './loadData';
 afterEach(() => {
   cleanup();
   clearDataCache();
-  // the mode is shown in the URL hash; a test must not leave it behind for the next one
   window.history.replaceState(null, '', '/');
 });
 

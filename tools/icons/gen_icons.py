@@ -1,12 +1,4 @@
-"""The site's three pictures: favicon.png (64 x 64), apple-touch-icon.png (180 x 180) and social.png (1200 x 630).
-
-    python3 tools/icons/gen_icons.py            # writes into web/public/
-    python3 tools/icons/gen_icons.py OUTDIR     # or somewhere else
-
-Pixel art, drawn on a small grid with hard edges and enlarged with nearest-neighbour: a pixel basketball, the moon with a hoop on it,
-and the six tier squares, in the site's palette. No logos. The share image uses the site's two fonts, so run `npm install` in
-web/ first. Needs Pillow.
-"""
+"""Draws web/public/{favicon,apple-touch-icon,social}.png. Usage: python3 tools/icons/gen_icons.py [OUTDIR]. Needs Pillow and `npm install` in web/ for the fonts."""
 import math
 import os
 import random
@@ -26,7 +18,6 @@ TIER_TEXT = ["#ffffff"] + [INK] * 5
 
 
 def ball(size: int, outline=(26, 9, 2, 255)) -> Image.Image:
-    """A pixel basketball, size x size cells: orange, with a dark outline, a cross of seams and two curved seams."""
     im = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     c = (size - 1) / 2
     r = size / 2 - 0.4
@@ -49,7 +40,7 @@ def icon(cells: int, k: int) -> Image.Image:
     im = Image.new("RGBA", (cells, cells), SKY)
     d = ImageDraw.Draw(im)
     d.rectangle((0, 0, cells - 1, cells - 1), outline=ORANGE)
-    b = ball(cells - 4, outline=(244, 234, 214, 255))  # a cream edge, so the ball shows on the dark square
+    b = ball(cells - 4, outline=(244, 234, 214, 255))
     im.paste(b, (2, 2), b)
     return scaled(im, k)
 
@@ -65,9 +56,8 @@ def social() -> Image.Image:
     low = Image.new("RGB", (cells_w, cells_h), SKY)
     d = ImageDraw.Draw(low)
     rnd = random.Random(4)
-    for _ in range(90):  # stars
+    for _ in range(90):
         d.point((rnd.randrange(cells_w), rnd.randrange(150)), fill=rnd.choice([CREAM, CREAM, MUTED, AMBER]))
-    # the moon with a hoop and net on it
     mx, my, mr = 300, 70, 44
     d.ellipse((mx - mr, my - mr, mx + mr, my + mr), fill=MOON)
     for cx, cy, cr in ((-16, -12, 8), (14, -4, 6), (-4, 18, 10), (22, 22, 5), (-28, 8, 5)):
@@ -77,13 +67,11 @@ def social() -> Image.Image:
         for x in range(mx - 20 + i // 2, mx + 21 - i // 2):
             if (x + i) % 2 == 0:
                 low.putpixel((x, my + mr + 1 + i), (244, 234, 214))
-    # the ball, at the moon, and the level lines
     for y in (70, 110, 150):
         for x in range(232, cells_w, 8):
             d.line((x, y, x + 3, y), fill="#3a3a3a")
     b = ball(26)
     low.paste(b, (mx - 13, 150 - 13), b)
-    # floor
     d.rectangle((0, 188, cells_w, cells_h), fill="#b25e1a")
     d.line((0, 188, cells_w, 188), fill=CREAM)
     img = scaled(low, k).convert("RGB")

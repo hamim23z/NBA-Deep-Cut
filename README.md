@@ -1,22 +1,16 @@
 # NYLON
 
-**NYLON** is a daily basketball shot. Every day there is a new **dive** of seven prompts, 25 seconds each, for example "Since 2001-02, name a player who played for both the Philadelphia 76ers and the Phoenix Suns". Name any valid answer and the ball moves: in **RARE** mode the ball starts on the moon and the rarer your answer, the deeper it sinks (and the more you score); in **COMMON** mode it starts at the rim and the more famous your answer, the higher it climbs. Share your total and seven coloured squares.
+**NYLON** is a daily basketball shot. Every day there is a new **dive** of seven prompts, 25 seconds each, for example "Since 2001-02, name a player who played for both the Philadelphia 76ers and the Phoenix Suns". Name any valid answer and the ball moves with your running total (700 points is the whole way): in **RARE** mode the ball starts on the moon and sinks, the rarer your answers the faster; in **COMMON** mode it starts at the rim and climbs, the more famous your answers the faster. Share your total and seven coloured squares.
 
 It is a static website (Vite, React, TypeScript) with no backend, no accounts, no analytics and no cookies. The prompts come from an offline Python pipeline that turns real NBA box scores (2001-02 to 2025-26) into two JSON files. (The game was called Deep Cut until session 7f; the repository and the address are unchanged.)
 
-![The home screen: the moon world behind, the two modes on the right](docs/screenshots/nylon/1440-rare-1-home.png)
-
-| Phone: a prompt | Phone: an answer lands | Phone: the end level | Phone: results |
-| --- | --- | --- | --- |
-| ![](docs/screenshots/nylon/390-rare-2-prompt.png) | ![](docs/screenshots/nylon/390-rare-4-after-answer.png) | ![](docs/screenshots/nylon/390-common-6-celebration.png) | ![](docs/screenshots/nylon/390-rare-7-results.png) |
-
-The whole screen is one pixel-art **moon world**, drawn in code: a night sky with the moon (and a hoop on it), clouds, an arena roof with banners, a crowd and a hardwood floor with a hoop. The ball moves up and down a column through six levels (moon, orbit, clouds, roof, rafters, rim) and a card floats at the right with the question. On a phone the card is a sheet at the bottom. More screenshots at three sizes are in [docs/screenshots/nylon](docs/screenshots/nylon); [docs/design.md](docs/design.md) explains the design.
+The whole screen is one pixel-art **moon world**, drawn in code: a night sky with the moon (and a hoop on it), clouds, an arena roof with banners, a crowd and a hardwood floor with a hoop. The ball travels one way down (RARE) or up (COMMON) a column, from the moon to the rim, and a card floats at the right with the question. On a phone the card is a sheet at the bottom. [docs/design.md](docs/design.md) explains the design.
 
 ## How it plays
 
 - **A dive** is 7 prompts, 25 seconds each, the same seven for everyone each day (the day changes at midnight in New York). Type a name (autocomplete suggests from the whole list of players and teams, so it never gives an answer away) and press Enter.
 - **Two modes**, chosen on the home screen, remembered, and shown in the address (`#rare`, `#common`). Every valid answer has a fame tier (1 = most famous, 6 = rarest) and the mode decides what it is worth: RARE pays 10, 20, 35, 55, 75, 100 for tiers 1 to 6; COMMON pays 100, 75, 55, 35, 20, 10. A wrong, empty or late answer is an airball: 0 points in both modes, and the ball stays where it is. A dive is worth at most 700.
-- **The result card** shows the level the ball landed on (and its pick: FRANCHISE, ALL-STAR, STARTER, ROTATION, BENCH, DEEP CUT), your answer, the points, the new altitude and a line about it. Enter or the button goes on. Reaching the end level (the moon in COMMON, the rim in RARE) sets off a small celebration.
+- **The result card** shows the answer's tier class (FRANCHISE, ALL-STAR, STARTER, ROTATION, BENCH, DEEP CUT), your answer, the points and the feet gained (10 ft a point), and a line about it. The next prompt starts where the ball stopped; a wrong answer is 0 points and the ball does not move. Enter or the button goes on. Reaching 700 points sets off a small celebration.
 - **Streaks and the archive:** a day counts for your streak if you finish either mode. Finished dives, best scores and the archive are kept per mode, in your browser (localStorage); there is no account. What the game saved under its old name (Deep Cut) is copied to the new `nylon:*` keys the first time it runs, so nothing is lost.
 - A real player from before 2001-02 gets an "outside the data range" message, not a miss.
 

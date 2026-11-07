@@ -125,10 +125,10 @@ describe('loading and the screens around the game', () => {
     await user.click(await screen.findByRole('button', { name: 'How to play' }));
     expect(screen.getByText(/7 prompts/)).toBeInTheDocument();
     expect(screen.getByText(/25 seconds/)).toBeInTheDocument();
-    const table = screen.getByRole('table', { name: 'Levels and points' });
+    const table = screen.getByRole('table', { name: 'Points by tier' });
     const rows = within(table).getAllByRole('row').slice(1).map((r) => within(r).getAllByRole('cell').map((c) => c.textContent));
-    expect(rows.map((r) => r[1])).toEqual(['10', '20', '35', '55', '75', '100']); // rare mode: the rarer, the more
-    expect(rows.map((r) => r[2])).toEqual(['100', '75', '55', '35', '20', '10']); // common mode: the more famous, the more
+    expect(rows.map((r) => r[1])).toEqual(['10', '20', '35', '55', '75', '100']);
+    expect(rows.map((r) => r[2])).toEqual(['100', '75', '55', '35', '20', '10']);
     expect(screen.getByText(/estimate of how famous/i)).toBeInTheDocument();
     expect(screen.getByText(/approximation/i)).toBeInTheDocument();
     expect(screen.getByText(/2001-02 season onward/)).toBeInTheDocument();
@@ -259,7 +259,7 @@ describe('the reveal', () => {
     expect(within(lists[0]!).getAllByRole('listitem').map((li) => li.querySelector('.answers__name')?.textContent)).toEqual(famous);
     expect(within(lists[1]!).getAllByRole('listitem').map((li) => li.querySelector('.answers__name')?.textContent)).toEqual(rarest);
     expect(screen.getByText(`All ${prompt.answers.length} valid answers`)).toBeInTheDocument();
-    expect(screen.getByLabelText('Your answer')).toHaveFocus(); // the answer stays focused: Enter goes on, Tab reaches the next button
+    expect(screen.getByLabelText('Your answer')).toHaveFocus();
   });
 
   it('says an invalid answer is invalid, and names the person it recognized', async () => {
@@ -358,7 +358,7 @@ describe('a full dive', () => {
     expect((box as HTMLTextAreaElement).value).toMatch(/^NYLON RARE #1: \d+\n/);
     expect(screen.getByTestId('announcer')).toHaveTextContent(/Could not copy/);
     await user.click(screen.getByRole('button', { name: 'Home' }));
-    expect(await screen.findByRole('button', { name: /^VIEW (RARE|COMMON) RESULTS$/ })).toBeInTheDocument(); // no replaying today's dive
+    expect(await screen.findByRole('button', { name: /^VIEW (RARE|COMMON) RESULTS$/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ })).not.toBeInTheDocument();
   });
 });
@@ -368,7 +368,7 @@ describe('the daily rotation', () => {
     serveFiles(twoDives());
     const user = setup();
     await start(user, DAY.second);
-    expect(promptText()).toBe(displayText(twoDives()[7]!.text)); // dive #2 is prompts 7 to 13
+    expect(promptText()).toBe(displayText(twoDives()[7]!.text));
     expect(await screen.findByText(/Prompt 1 of 7/)).toBeInTheDocument();
   });
 
@@ -418,7 +418,7 @@ describe('before the launch', () => {
     await playWholeDive(user, divePrompts(mockPrompts(), 2));
     const keys = [...(storage as ReturnType<typeof memory>).data.keys()];
     expect(keys.length).toBeGreaterThan(0);
-    expect(keys.every((k) => k.startsWith('nylon:preview:'))).toBe(true); // never the real keys
+    expect(keys.every((k) => k.startsWith('nylon:preview:'))).toBe(true);
   });
 
   it('ignores ?today=... without ?preview=1 and ignores a bad date', async () => {
@@ -544,7 +544,7 @@ describe('the archive', () => {
     await user.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByTestId('streak-current')).toHaveTextContent('0 days');
     expect(screen.getByTestId('streak-best')).toHaveTextContent('0 days');
-    expect(screen.getByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ })).toBeInTheDocument(); // today's dive is still waiting
+    expect(screen.getByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ })).toBeInTheDocument();
   });
 
   it("playing today's dive from the archive counts as the daily play", async () => {
@@ -569,7 +569,7 @@ describe('storage that does not work', () => {
     await playWholeDive(user, expectedDive());
     expect(screen.getByRole('heading', { name: 'Dive complete' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Home' }));
-    expect(screen.getByRole('button', { name: /^VIEW (RARE|COMMON) RESULTS$/ })).toBeInTheDocument(); // kept for this visit
+    expect(screen.getByRole('button', { name: /^VIEW (RARE|COMMON) RESULTS$/ })).toBeInTheDocument();
     expect(screen.getByTestId('streak-current')).toHaveTextContent('1 day');
   });
 

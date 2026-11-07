@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
@@ -88,7 +88,7 @@ describe('choosing a mode', () => {
     await user.click(await screen.findByRole('button', { name: 'PLAY COMMON SHOT' }));
     await screen.findByRole('combobox');
     expect(screen.getByTestId('hud-mode')).toHaveTextContent('COMMON · CLIMB TO THE MOON');
-    expect(screen.getByTestId('hud-altitude')).toHaveTextContent('60'); // the ball starts at the rim
+    expect(screen.getByTestId('hud-altitude')).toHaveTextContent('0');
   });
 });
 
@@ -100,11 +100,12 @@ describe('scoring by mode', () => {
     await screen.findByRole('combobox');
     const answer = firstAnswerOf(0);
     await answerWith(user, answer.name);
+    await act(async () => void vi.advanceTimersByTime(2000));
     const expected = mode === 'rare' ? TIER_POINTS[answer.tier] : TIER_POINTS[(7 - answer.tier) as 1];
     expect(document.querySelector('.result-card__points')?.textContent).toContain(`+${expected} PTS`);
     expect(screen.getByRole('button', { name: `${verb} ▶` })).toBeInTheDocument();
     expect(screen.getByTestId('world-live').textContent).toMatch(new RegExp(`, ${expected} points, ${expected} total$`));
-    expect(document.querySelector('.result-card__points')?.textContent).toContain(mode === 'rare' ? 'sink to' : 'rise to');
+    expect(document.querySelector('.result-card__points')?.textContent).toContain(`${mode === 'rare' ? 'sink' : 'rise'} ${(expected * 10).toLocaleString('en-US')} ft`);
   });
 
   it('keeps a finished dive and the score in the history of its own mode', async () => {
@@ -132,7 +133,7 @@ describe('streaks, results and the other mode', () => {
     await playDive(user);
     await user.click(await screen.findByRole('button', { name: 'Home' }));
     expect(await screen.findByTestId('streak-current')).toHaveTextContent('1 day');
-    await user.click(screen.getByRole('radio', { name: /RARE/ })); // the other mode has no dive yet today, the streak still stands
+    await user.click(screen.getByRole('radio', { name: /RARE/ }));
     expect(screen.getByTestId('streak-current')).toHaveTextContent('1 day');
     expect(screen.getByRole('button', { name: 'PLAY RARE SHOT' })).toBeInTheDocument();
     await user.click(screen.getByRole('radio', { name: /COMMON/ }));
@@ -157,7 +158,7 @@ describe('streaks, results and the other mode', () => {
     expect(await screen.findByText(/DIVE #1 · COMMON/)).toBeInTheDocument();
     expect(Object.keys(loadHistory(store, historyKey('rare')))).toEqual(['1']);
     expect(Object.keys(loadHistory(store, historyKey('common')))).toEqual(['1']);
-    await user.click(screen.getByRole('button', { name: 'PLAY THE OTHER MODE (RARE)' })); // already played: its results
+    await user.click(screen.getByRole('button', { name: 'PLAY THE OTHER MODE (RARE)' }));
     expect(await screen.findByText(/DIVE #1 · RARE/)).toBeInTheDocument();
   });
 
@@ -177,10 +178,10 @@ describe('the old Deep Cut data', () => {
     store.setItem(LEGACY_KEYS.history, JSON.stringify(history));
     store.setItem(LEGACY_KEYS.sound, 'on');
     show(store);
-    await screen.findByRole('heading', { name: 'Dive complete' }); // today's old dive is finished, so the game opens on its results
+    await screen.findByRole('heading', { name: 'Dive complete' });
     expect(screen.getByTestId('final-streak')).toHaveTextContent('1 day');
     expect(store.getItem(historyKey('rare'))).toBe(JSON.stringify(history));
-    expect(store.getItem(LEGACY_KEYS.history)).toBe(JSON.stringify(history)); // the old key is left alone
+    expect(store.getItem(LEGACY_KEYS.history)).toBe(JSON.stringify(history));
     expect(store.getItem('nylon:sound')).toBe('on');
     expect(await screen.findByRole('button', { name: /Sound on/ })).toBeInTheDocument();
   });

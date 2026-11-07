@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BALL_X, BANNERS, DIGITS, FLOOR_Y, GRID, MOON, PALETTE, RIM_Y, ROOF_Y, pixelAt, renderClouds, renderCrowdShimmer, renderScene, renderStars, rng, sceneMetrics, toScreen } from './scene';
-import { LEVELS } from '../modes';
+import { MOON_Y, RIM_Y as TRACK_RIM_Y } from '../modes';
 
 const scene = renderScene();
 
@@ -39,7 +39,7 @@ describe('the moon world scene', () => {
   it('has a cream baseline at row 203 and hardwood below it', () => {
     expect(pixelAt(scene, 20, FLOOR_Y)).toBe(PALETTE.cream.toUpperCase());
     const wood = pixelAt(scene, 21, FLOOR_Y + 4);
-    expect(Number.parseInt(wood.slice(1, 3), 16)).toBeGreaterThan(Number.parseInt(wood.slice(5, 7), 16) + 40); // orange-brown: red well above blue
+    expect(Number.parseInt(wood.slice(1, 3), 16)).toBeGreaterThan(Number.parseInt(wood.slice(5, 7), 16) + 40);
   });
   it('hangs banners from the rafters across the width and keeps the ball column clear', () => {
     let banner = 0;
@@ -54,9 +54,9 @@ describe('the moon world scene', () => {
       for (const row of rows) expect(row).toMatch(/^[01]{3}$/);
     }
   });
-  it('keeps the moon, the roof opening and the ball column free of the level rows it needs', () => {
-    for (const level of LEVELS) expect(level.y).toBeGreaterThan(0);
-    expect(LEVELS[0]!.y).toBe(MOON.y + 2);
+  it('puts the ends of the ball track on the moon and at the arena rim', () => {
+    expect(MOON_Y).toBe(MOON.y + 2);
+    expect(TRACK_RIM_Y).toBeGreaterThan(RIM_Y);
   });
 });
 
@@ -98,13 +98,13 @@ describe('where the grid sits on a screen', () => {
   it('sizes a phone scene to the part above the sheet and keeps the ball column in view', () => {
     const m = sceneMetrics(390, 844);
     expect(m.narrow).toBe(true);
-    expect(m.oy + GRID.h * m.scale).toBeGreaterThanOrEqual(m.visible); // the scene runs down to the sheet
-    expect(m.oy).toBeGreaterThanOrEqual(90); // and starts below the HUD, so the moon is clear of it
+    expect(m.oy + GRID.h * m.scale).toBeGreaterThanOrEqual(m.visible);
+    expect(m.oy).toBeGreaterThanOrEqual(90);
     expect(GRID.w * m.scale).toBeGreaterThanOrEqual(390);
     const ball = toScreen(m, BALL_X, 0).x;
     expect(ball).toBeGreaterThan(40);
     expect(ball).toBeLessThan(390 - 40);
-    expect(toScreen(m, 0, LEVELS[5]!.y).y).toBeLessThan(m.visible); // even the rim is above the sheet
+    expect(toScreen(m, 0, TRACK_RIM_Y).y).toBeLessThan(m.visible);
   });
   it('maps cells to screen pixels', () => {
     expect(toScreen(sceneMetrics(1440, 860), BALL_X, 24)).toEqual({ x: 528, y: 96 });

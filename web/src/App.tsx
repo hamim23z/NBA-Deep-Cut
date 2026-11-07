@@ -27,10 +27,8 @@ import type { Prompt, PromptResult } from './types';
 
 type Load = { status: 'loading' } | { status: 'error'; message: string } | ({ status: 'ready' } & GameData);
 
-// The moon world loads after the screens, so the home screen is quick.
 const World = lazy(() => import('./world/World'));
 
-/** daily: today's dive, counts for the streak. archive: a past dive. test: the preview play-test, never saved. */
 type Kind = 'daily' | 'archive' | 'test';
 type View =
   | { name: 'home' }
@@ -46,7 +44,6 @@ interface Props {
   storage?: StorageLike | null;
   /** The URL's query string; ?preview=1 enables the pre-launch play-test, ?preview=1&today=YYYY-MM-DD pretends it is that day. */
   search?: string;
-  /** The URL's hash: #rare or #common picks the mode. */
   hash?: string;
   launchDate?: string;
   /** Outside-range names, overriding outside_range.json (tests). */
@@ -61,7 +58,6 @@ export default function App(props: Props) {
   );
 }
 
-/** The mode a hash asks for: "#rare" or "#common". */
 export function modeFromHash(hash: string): Mode | null {
   const word = hash.replace(/^#/, '').toLowerCase();
   return isMode(word) ? word : null;
@@ -84,7 +80,6 @@ function Game({ now = () => new Date(), storage, search, hash, launchDate = LAUN
   const store = useMemo(() => (storage === undefined ? browserStorage() : storage), [storage]);
   const progKey = progressKey(preview);
 
-  // Anything saved under the old name (Deep Cut) is copied to the nylon:* keys before the first read.
   const migrated = useRef(false);
   if (!migrated.current) {
     migrated.current = true;
@@ -97,12 +92,11 @@ function Game({ now = () => new Date(), storage, search, hash, launchDate = LAUN
   const [attempt, setAttempt] = useState(0); // bumped by the retry button
   const [histories, setHistories] = useState<Record<Mode, History>>(() => ({ rare: loadHistory(store, historyKey('rare', preview)), common: loadHistory(store, historyKey('common', preview)) }));
   const historiesRef = useRef(histories);
-  const storedProgress = useRef<Progress | null>(loadProgress(store, progKey)); // read once, at load
+  const storedProgress = useRef<Progress | null>(loadProgress(store, progKey));
   const [saving, setSaving] = useState<boolean>(store !== null);
   const [view, setView] = useState<View | null>(null);
   const history = histories[mode];
 
-  /** Pick a mode: remember it, show it in the URL, and tell the world. */
   const chooseMode = useCallback(
     (next: Mode): void => {
       modeRef.current = next;
@@ -111,18 +105,15 @@ function Game({ now = () => new Date(), storage, search, hash, launchDate = LAUN
       try {
         store?.setItem(modeKey(preview), next);
       } catch {
-        // storage refused: the choice lasts for this visit
       }
       try {
         if (typeof window !== 'undefined' && window.location.hash !== `#${next}`) window.history.replaceState(null, '', `#${next}`);
       } catch {
-        // some embedded browsers refuse
       }
     },
     [store, world, preview],
   );
 
-  // The back button, or a link with another hash, changes the mode (never in the middle of a dive).
   useEffect(() => {
     const onHash = (): void => {
       const next = modeFromHash(window.location.hash);
@@ -159,7 +150,6 @@ function Game({ now = () => new Date(), storage, search, hash, launchDate = LAUN
   const todayDate = preview && override && isDateString(override) ? override : dateInZone(now());
   const today = diveNumberOn(todayDate, launchDate);
   const launched = today >= 1;
-  // a day counts for the streak if either mode was finished on it
   const streaks = useMemo(() => computeStreaks(mergeDaily(histories.rare, histories.common), today), [histories, today]);
   const total = load.status === 'ready' ? diveCount(load.prompts) : 0;
 
@@ -184,13 +174,13 @@ function Game({ now = () => new Date(), storage, search, hash, launchDate = LAUN
 
   const finish = useCallback(
     (number: number, kind: Kind, play: Mode, results: PromptResult[]): void => {
-      if (kind === 'test' || historiesRef.current[play][number]) return; // the first finished play of a dive is the one that counts
+      if (kind === 'test' || historiesRef.current[play][number]) return;
       const next = { ...historiesRef.current, [play]: { ...historiesRef.current[play], [number]: { results, daily: kind === 'daily' } } };
       historiesRef.current = next;
       setHistories(next);
       setSaving(saveHistory(store, historyKey(play, preview), next[play]));
       progressRef.current = null;
-      saveProgress(store, progKey, null); // the dive is finished: nothing left to resume
+      saveProgress(store, progKey, null);
     },
     [store, preview, progKey],
   );
@@ -229,7 +219,6 @@ function Game({ now = () => new Date(), storage, search, hash, launchDate = LAUN
     setAttempt((n) => n + 1);
   };
 
-  // The world follows the screen when no dive is on. A dive and the results publish their own state.
   useEffect(() => {
     if (!view || view.name === 'dive' || view.name === 'results') return;
     world.set({ phase: 'idle', mode, diveNumber: launched ? today : null, points: 0, promptNumber: 0, marks: [], skipped: false });
@@ -242,7 +231,6 @@ function Game({ now = () => new Date(), storage, search, hash, launchDate = LAUN
     const resume = saved && saved.number === number && (saved.gameMode ?? 'rare') === play && load.status === 'ready' ? resumeFor(saved, divePrompts(load.prompts, number)) : null;
     go({ name: 'dive', number, kind, play, resume: resume && resume.results.length < 7 ? resume : undefined });
   };
-  /** "Play the other mode": finish the dive in that mode, or look at the result if it is already done. */
   const otherMode = (number: number, next: Mode): void => {
     chooseMode(next);
     if (historiesRef.current[next][number]) go({ name: 'results', number, play: next });
@@ -252,8 +240,7 @@ function Game({ now = () => new Date(), storage, search, hash, launchDate = LAUN
 
   const nav = { onHome: () => go({ name: 'home' }), onArchive: () => go({ name: 'archive' }), onHowTo: () => go({ name: 'howto' }) };
 
-  const heroHome = view?.name === 'home' && launched; // the home screen's title is the page's h1
-  // the card keeps clear of the ball column on a wide screen
+  const heroHome = view?.name === 'home' && launched;
   const cardLeft = Math.round(metrics.ox + BALL_X * metrics.scale + 9 * metrics.scale * 0.5 + 36);
   const appStyle = { '--card-left': `${cardLeft}px` } as CSSProperties;
   return (
@@ -346,5 +333,4 @@ function Game({ now = () => new Date(), storage, search, hash, launchDate = LAUN
 function focusOnMount(node: HTMLHeadingElement | null): void {
   node?.focus();
 }
-
 

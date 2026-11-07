@@ -77,7 +77,6 @@ export interface Progress {
   promptIds: string[];
   /** The answers given so far, in order. The next prompt is the one after them. */
   results: PromptResult[];
-  /** The game mode it is played in (a dive saved by the old game has none: it was played the rare way). */
   gameMode?: Mode;
   /** When the prompt on screen was shown (ms since 1970), so a reload cannot give extra time. Null while a result is on screen. */
   startedAt: number | null;
@@ -112,11 +111,6 @@ export function saveProgress(storage: StorageLike | null, key: string, progress:
   }
 }
 
-/**
- * Copy what the game saved under its old name (Deep Cut) to the new nylon:* keys, once: the finished dives and the dive in progress
- * (they were played the rare way, so they become the rare history), and the sound setting. A new key that already has a value is
- * never overwritten, and the old keys stay where they are, so nothing is lost if a visitor goes back.
- */
 export function migrateLegacy(storage: StorageLike | null, preview = false): void {
   if (!storage) return;
   const copy = (from: string, to: string, transform?: (raw: string) => string): void => {
@@ -126,7 +120,6 @@ export function migrateLegacy(storage: StorageLike | null, preview = false): voi
       if (storage.getItem(to)) return;
       storage.setItem(to, transform ? transform(old) : old);
     } catch {
-      // storage refused: the game starts fresh
     }
   };
   copy(preview ? LEGACY_KEYS.previewHistory : LEGACY_KEYS.history, historyKey('rare', preview));

@@ -1,12 +1,11 @@
-import { LEVELS, MODE_LABEL, MODE_CHIP, formatFeet } from '../modes';
+import { MODE_LABEL, MODE_CHIP, altitudeFt, formatFeet, travelMs } from '../modes';
 import { useReducedMotion } from '../motion';
 import { useSound } from '../sound';
 import { RollingNumber } from './RollingNumber';
-import { TIER_COLORS, TIER_INK, moveMs } from '../world/palette';
-import { ballLevel, previousLevel, useWorldState } from '../world/worldStore';
+import { TIER_COLORS, TIER_INK } from '../world/palette';
+import { useWorldState } from '../world/worldStore';
 import type { Tier } from '../types';
 
-/** Off by default; remembers its setting. Nothing plays before the visitor's first interaction. */
 export function SoundToggle() {
   const { enabled, toggle } = useSound();
   return (
@@ -16,18 +15,14 @@ export function SoundToggle() {
   );
 }
 
-/**
- * The bar across the top. It always has the NYLON chip and the sound switch; during a dive it adds the altitude, the seven prompt
- * pips and the score, all read from the world store (the one source of truth), so they match what the ball shows.
- */
 export function Hud({ onHome }: { onHome: () => void }) {
   const state = useWorldState();
   const reduced = useReducedMotion();
   const playing = state.phase !== 'idle';
-  const level = ballLevel(state.mode, state.marks);
-  const before = previousLevel(state.mode, state.marks);
   const arriving = state.phase === 'result';
-  const delay = reduced || state.skipped || !arriving ? 0 : moveMs(before, level);
+  const last = state.marks[state.marks.length - 1];
+  const earned = arriving && last ? last.points : 0;
+  const delay = reduced || state.skipped ? 0 : travelMs(earned);
   const shown = Math.min(state.promptNumber, state.total);
   return (
     <header className={`hud${playing ? ' hud--playing' : ''}`}>
@@ -37,7 +32,7 @@ export function Hud({ onHome }: { onHome: () => void }) {
           <div className="box hud__alt" role="group" aria-label="Altitude">
             <span className="box__label">ALTITUDE (FT)</span>
             <span className="box__value" data-testid="hud-altitude">
-              <RollingNumber value={LEVELS[level]?.ft ?? 0} from={LEVELS[arriving ? before : level]?.ft} delayMs={delay} durationMs={delay === 0 ? 0 : 450} instant={delay === 0} format={formatFeet} />
+              <RollingNumber value={altitudeFt(state.mode, state.points)} from={altitudeFt(state.mode, state.points - earned)} delayMs={0} durationMs={delay} instant={delay === 0} format={formatFeet} />
             </span>
           </div>
         )}
@@ -65,7 +60,7 @@ export function Hud({ onHome }: { onHome: () => void }) {
           <div className="box hud__score" role="group" aria-label="Score">
             <span className="box__label">SCORE</span>
             <span className="box__value" data-testid="scoreboard-points">
-              <RollingNumber value={state.points} delayMs={delay === 0 ? 0 : delay + 150} instant={delay === 0} />
+              <RollingNumber value={state.points} from={state.points - earned} durationMs={delay} instant={delay === 0} />
             </span>
           </div>
         )}
