@@ -26,6 +26,7 @@ export function AnswerInput({ index, onSubmitText, onPick, labelledBy, onTextCha
   const [active, setActive] = useState(-1);
   const [hint, setHint] = useState('');
   const [choices, setChoices] = useState<Entry[] | null>(null);
+  const [picked, setPicked] = useState<Entry | null>(null);
   const [shake, setShake] = useState(0); // bumped to replay a short shake when a name needs a second look (two alternating keyframes restart it without remounting the input)
 
   useEffect(() => {
@@ -48,6 +49,7 @@ export function AnswerInput({ index, onSubmitText, onPick, labelledBy, onTextCha
   const change = (value: string): void => {
     setText(value);
     setChoices(null);
+    setPicked(null);
     setHint('');
     setOpen(value.trim() !== '');
     setActive(-1);
@@ -55,12 +57,22 @@ export function AnswerInput({ index, onSubmitText, onPick, labelledBy, onTextCha
   };
 
   const pick = (s: Suggestion): void => {
+    setText(s.entry.name);
+    setPicked(s.entry);
+    setChoices(null);
+    setHint('');
     setOpen(false);
-    onPick(s.entry, s.entry.name);
+    setActive(-1);
+    onTextChange?.(s.entry.name);
+    inputRef.current?.focus();
   };
 
   const submit = (): void => {
     setOpen(false);
+    if (picked && picked.name === text) {
+      onPick(picked, text);
+      return;
+    }
     onSubmitText(text, (h) => {
       setHint(h);
       setShake((n) => n + 1);

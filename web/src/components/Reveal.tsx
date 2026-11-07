@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type Ref } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type Ref } from 'react';
 import { FLAVOR, MODE_VERB, TIER_CLASS, feetFor, formatFeet, travelMs, type Mode } from '../modes';
 import { RollingNumber } from './RollingNumber';
 import { useReducedMotion } from '../motion';
@@ -119,7 +119,10 @@ export function Reveal({ prompt, result, mode, isLast, headingRef, onNext, skipp
   const color = tier ? TIER_COLORS[tier as Tier] : '#6E6E6E';
   const verb = MODE_VERB[mode];
 
+  const started = useRef<string | null>(null);
   useEffect(() => {
+    if (started.current === result.promptId) return;
+    started.current = result.promptId;
     world.set({ phase: 'result', shotKey: world.get().shotKey + 1, skipped: false });
     if (!reduced) play(shot.name);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per result
