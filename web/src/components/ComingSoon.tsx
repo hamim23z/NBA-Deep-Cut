@@ -12,7 +12,7 @@ export function ComingSoon({ launchDate, onPlayTest, onHowTo }: Props) {
     <section className="card soon" aria-labelledby="soon-heading">
       <h2 id="soon-heading">Coming soon</h2>
       <p>
-        Deep Cut starts on <strong>{longDate(launchDate)}</strong>. A new dive of seven basketball prompts every day.
+        NYLON starts on <strong>{longDate(launchDate)}</strong>. A new dive of seven basketball prompts every day.
       </p>
       <div className="actions">
         <button type="button" className="secondary" onClick={onHowTo}>

@@ -305,6 +305,8 @@ export interface Metrics {
 }
 
 export const NARROW_MAX = 700;
+/** On a wide screen the moon's level line (row 24) stays at least this far from the top. */
+export const MOON_LINE_MIN = 70;
 /** On a phone the sheet with the question takes the bottom of the screen, and the HUD the top. */
 export const SHEET_SHARE = 0.46;
 export const HUD_NARROW = 96;
@@ -317,7 +319,8 @@ export function sceneMetrics(vw: number, vh: number): Metrics {
   const width = GRID.w * scale;
   const centred = (vw - width) / 2;
   const ox = narrow ? Math.min(0, Math.max(vw - width, vw * 0.3 - BALL_X * scale)) : centred;
-  const oy = narrow ? top : (vh - GRID.h * scale) / 2;
+  // centred, but never so far up that the moon's level line runs under the HUD (the gauge row sits on it)
+  const oy = narrow ? top : Math.min(0, Math.max((vh - GRID.h * scale) / 2, MOON_LINE_MIN - 24 * scale));
   return { scale, ox, oy, narrow, visible };
 }
 

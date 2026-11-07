@@ -154,14 +154,14 @@ export function Reveal({ prompt, result, mode, isLast, headingRef, onNext, skipp
         {level ? level.name : 'AIRBALL'}
         <span className="visually-hidden">: {headline(result)}</span>
       </h3>
-      <input className="result-card__answer" readOnly aria-label="Your answer" value={typed.trim() === '' ? 'No answer' : `"${typed}"`} onFocus={(e) => e.currentTarget.select()} ref={(node) => node?.focus({ preventScroll: true })} />
+      <input className="result-card__answer" readOnly aria-label="Your answer" value={typed.trim() === '' ? 'No answer' : `"${typed}"`} ref={(node) => node?.focus({ preventScroll: true })} />
       <p className="result-card__points">
         <strong>+{result.points} PTS</strong>
         {level && <> · {verb.move} to {formatFeet(level.ft)} ft</>}
       </p>
       {tier ? <p className="result-card__flavor">{FLAVOR[mode][tier - 1]}</p> : <p className="result-card__flavor">{explanation(prompt, result)}</p>}
       <button type="button" className="primary result-card__next" onClick={onNext}>
-        {isLast ? 'SEE RESULTS ▶' : `${verb.next} ▶`}
+        {isLast ? 'SEE RESULTS' : verb.next} <span className="arrow">▶</span>
       </button>
       <details className="result-card__more">
         <summary>See the famous and the rare answers</summary>

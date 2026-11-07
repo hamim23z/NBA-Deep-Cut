@@ -95,14 +95,14 @@
 .world__mode {
   position: absolute;
   left: 16px;
-  bottom: 16px;
+  bottom: 8px;
   margin: 0;
-  padding: 8px 12px;
+  padding: 6px 10px;
   background: #0a0a0a;
-  border: 4px solid #ff6a13;
+  border: 3px solid #ff6a13;
   color: #f4ead6;
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 9px;
   line-height: 1.4;
 }
 
@@ -110,12 +110,12 @@
 .world__ruler { position: absolute; top: 0; bottom: 0; width: 70px; }
 .world__rule { position: absolute; right: 0; width: 0; border-right: 3px dotted #a8a8a8; }
 .world__tick { position: absolute; right: -4px; width: 12px; height: 2px; background: #a8a8a8; margin-top: -1px; }
-.world__ghost { position: absolute; display: flex; align-items: center; gap: 3px; margin-top: -7px; }
+.world__ghost { position: absolute; right: -7px; display: flex; align-items: center; gap: 3px; margin-top: -7px; }
 .world__ghost b { font-family: var(--font-display); font-size: 8px; font-weight: 400; }
 .world__you {
   position: absolute;
   top: 0;
-  right: 14px;
+  right: 22px;
   display: flex;
   align-items: center;
   gap: 4px;

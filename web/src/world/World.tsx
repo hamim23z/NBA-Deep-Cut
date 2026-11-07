@@ -8,6 +8,8 @@ import { TIER_COLORS, TIER_INK, moveMs, tierOfLevel } from './palette';
 import './world.css';
 
 const BALL_CELLS = 9;
+/** The two curved seams of the ball, left and right. */
+const ARCS = new Set(['2,2', '1,3', '1,5', '2,6', '6,2', '7,3', '7,5', '6,6']);
 /** The ball as 9 x 9 cells: orange with a dark outline and seams. */
 export function ballPixels(color = '#FF6A13', ink = '#1A0902'): Array<{ x: number; y: number; fill: string }> {
   const out: Array<{ x: number; y: number; fill: string }> = [];
@@ -15,7 +17,7 @@ export function ballPixels(color = '#FF6A13', ink = '#1A0902'): Array<{ x: numbe
     for (let x = 0; x < BALL_CELLS; x++) {
       const d = Math.hypot(x - 4, y - 4);
       if (d > 4.5) continue;
-      const seam = x === 4 || y === 4 || (Math.abs(x - 4) === 2 && Math.abs(y - 4) === 2);
+      const seam = x === 4 || y === 4 || ARCS.has(`${x},${y}`);
       out.push({ x, y, fill: d > 3.6 || seam ? ink : color });
     }
   }
@@ -72,7 +74,7 @@ export default function World() {
     return () => clearTimeout(id);
   }, [moved, ms, state.shotKey]);
 
-  const size = BALL_CELLS * m.scale;
+  const size = Math.max(BALL_CELLS * m.scale, m.narrow ? 30 : 0);
   const ball = toScreen(m, BALL_X, LEVELS[level]?.y ?? 24);
   const lineY = (i: number): number => toScreen(m, 0, LEVELS[i]?.y ?? 0).y;
   const cls = ['world', reduced ? 'is-reduced' : '', state.skipped ? 'is-skipped' : '', m.narrow ? 'is-narrow' : ''].filter(Boolean).join(' ');
@@ -138,7 +140,7 @@ export default function World() {
             const slot = seen.get(tier) ?? 0;
             seen.set(tier, slot + 1);
             return (
-              <span key={i} className="world__ghost" style={{ top: lineY(tier - 1), right: 22 + slot * 26 }}>
+              <span key={i} className="world__ghost" style={{ top: lineY(tier - 1) + slot * 16 }}>
                 <PixelBall size={14} color={TIER_COLORS[tier]} />
                 <b style={{ color: tier === 1 ? '#A8A8A8' : TIER_COLORS[tier] }}>{tier}</b>
               </span>

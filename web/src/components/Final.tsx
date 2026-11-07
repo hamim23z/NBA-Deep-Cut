@@ -116,7 +116,8 @@ export function Final({ prompts, results, diveNumber, mode, best, headingRef, on
       </button>
       {copyFailed && <p className="caveat">Your browser did not allow copying. Select the text above and copy it.</p>}
 
-      <h3>Your answers</h3>
+      <details className="final__recap">
+      <summary>Your answers, one by one</summary>
       <ol className="recap">
         {results.map((r, i) => (
           <li key={r.promptId} className="recap__item">
@@ -129,6 +130,7 @@ export function Final({ prompts, results, diveNumber, mode, best, headingRef, on
           </li>
         ))}
       </ol>
+      </details>
 
       <div className="actions">
         <button type="button" className="primary" onClick={() => onOtherMode(other)}>

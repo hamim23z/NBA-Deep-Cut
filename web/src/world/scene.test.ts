@@ -90,6 +90,11 @@ describe('where the grid sits on a screen', () => {
     expect(m.ox).toBeLessThanOrEqual(0);
     expect(m.oy).toBeLessThanOrEqual(0);
   });
+  it('keeps the moon level line clear of the HUD, and still shows some floor, on a 1280 x 720 screen', () => {
+    const m = sceneMetrics(1280, 720);
+    expect(toScreen(m, 0, 24).y).toBeGreaterThanOrEqual(70);
+    expect(toScreen(m, 0, 203).y).toBeLessThan(720);
+  });
   it('sizes a phone scene to the part above the sheet and keeps the ball column in view', () => {
     const m = sceneMetrics(390, 844);
     expect(m.narrow).toBe(true);

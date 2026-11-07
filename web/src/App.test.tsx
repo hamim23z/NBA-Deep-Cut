@@ -593,7 +593,7 @@ describe('storage that does not work', () => {
 
   it('ignores corrupted saved data and starts fresh', async () => {
     const store = memory();
-    store.data.set('deepcut.v1', '{not json');
+    store.data.set('nylon:history:rare', '{not json');
     renderApp(DAY.launch, { storage: store });
     expect(await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ })).toBeInTheDocument();
   });
