@@ -4,9 +4,10 @@ import { createWorldStore, INITIAL_WORLD, marksFrom } from './worldStore';
 describe('marksFrom', () => {
   it('keeps the tier and the points of a valid answer and makes everything else a miss', () => {
     const base = { promptId: 'p', input: '', matched: null, countsAsWrong: true };
-    expect(marksFrom([{ ...base, status: 'valid', tier: 2, points: 20 }, { ...base, status: 'timeout', tier: null, points: 0 }])).toEqual([
-      { id: 'p', tier: 2, points: 20 },
-      { id: 'p', tier: null, points: 0 },
+    const named = { ...base, input: 'x' };
+    expect(marksFrom([{ ...named, status: 'valid', tier: 2, points: 20 }, { ...base, status: 'timeout', tier: null, points: 0 }])).toEqual([
+      { id: 'p', tier: 2, points: 20, name: 'x' },
+      { id: 'p', tier: null, points: 0, name: '' },
     ]);
   });
 });

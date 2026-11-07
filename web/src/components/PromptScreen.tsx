@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useAnnounce } from '../announcer';
 import { resolveEntry, resolveText, timeoutResult } from '../answer';
 import { MODE_HINT, type Mode } from '../modes';
 import type { Index } from '../matching';
+import { NARROW_MAX } from '../world/scene';
+import { useViewport } from '../world/useMetrics';
+import { useWorldStore } from '../world/worldStore';
 import { SECONDS_PER_PROMPT } from '../tiers';
 import type { Entry, Prompt, PromptResult } from '../types';
 import { useCountdown } from '../useCountdown';
@@ -23,6 +26,12 @@ const WARNINGS = [10, 5];
 
 export function PromptScreen({ prompt, mode, index, outsideNames, elapsedMs = 0, onResult }: Props) {
   const announce = useAnnounce();
+  const world = useWorldStore();
+  const viewport = useViewport();
+  const section = useRef<HTMLElement>(null);
+  const [compact, setCompact] = useState(false);
+  const compactAt = useRef(0);
+  const narrow = viewport.w < NARROW_MAX;
   const typed = useRef('');
   const done = useRef(false);
 
@@ -61,10 +70,37 @@ export function PromptScreen({ prompt, mode, index, outsideNames, elapsedMs = 0,
     finish(resolution.result);
   };
 
+  useLayoutEffect(() => {
+    if (!narrow) return;
+    const measure = (): void => {
+      const root = section.current;
+      const app = root?.closest('.app');
+      const card = root?.querySelector('.prompt');
+      const row = root?.querySelector('.answer');
+      if (!app || !card || !row) return;
+      const base = app.getBoundingClientRect().top;
+      const top = card.getBoundingClientRect().bottom - base;
+      const bottom = row.getBoundingClientRect().top - base;
+      world.set({ band: { top: Math.round(top), bottom: Math.round(bottom) } });
+      if (!compact && bottom - top < 120) {
+        compactAt.current = viewport.h;
+        setCompact(true);
+      } else if (compact && viewport.h >= compactAt.current + 60) setCompact(false);
+    };
+    measure();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    const card = section.current?.querySelector('.prompt');
+    if (observer && card) observer.observe(card);
+    return () => {
+      observer?.disconnect();
+      world.set({ band: null });
+    };
+  }, [narrow, compact, viewport.h, prompt.id, world]);
+
   const urgency = seconds <= 5 ? 'danger' : seconds <= 10 ? 'warning' : 'calm';
   const promptId = `prompt-text-${prompt.id}`;
   return (
-    <section className="card prompt-card" aria-labelledby={promptId}>
+    <section ref={section} className={`card prompt-card${compact ? ' prompt-card--compact' : ''}`} aria-labelledby={promptId}>
       <div className={`shotclock shotclock--${urgency}`}>
         <p className="shotclock__digits timer__count" role="timer" aria-live="off">
           <span className={`timer__seconds timer__seconds--${urgency}`}>{seconds}</span>
@@ -74,7 +110,7 @@ export function PromptScreen({ prompt, mode, index, outsideNames, elapsedMs = 0,
           <div className="shotclock__fill" style={{ transform: `scaleX(${remainingMs / (SECONDS_PER_PROMPT * 1000)})` }} />
         </div>
       </div>
-      <h2 id={promptId} className="prompt">
+      <h2 id={promptId} className={`prompt${prompt.text.length > 150 ? ' prompt--xlong' : prompt.text.length > 110 ? ' prompt--long' : ''}`}>
         <PromptText text={prompt.text} />
       </h2>
       <AnswerInput

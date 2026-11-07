@@ -22,7 +22,7 @@ export default function AnimationsPage() {
     const gained = outcome.tier === null ? 0 : pointsFor(m, outcome.tier - 1);
     const total = Math.min(700, (marks.length === 0 ? 0 : before.points) + gained);
     setCurrent(name);
-    store.set({ mode: m, phase: 'result', marks: [...marks, { id: `demo-${before.shotKey + 1}`, tier: outcome.tier, points: total - (marks.length === 0 ? 0 : before.points) }], points: total, shotKey: before.shotKey + 1, skipped: false, promptNumber: marks.length + 1 });
+    store.set({ mode: m, phase: 'result', marks: [...marks, { id: `demo-${before.shotKey + 1}`, name: outcome.name, tier: outcome.tier, points: total - (marks.length === 0 ? 0 : before.points) }], points: total, shotKey: before.shotKey + 1, skipped: false, promptNumber: marks.length + 1 });
   };
 
   useEffect(() => {

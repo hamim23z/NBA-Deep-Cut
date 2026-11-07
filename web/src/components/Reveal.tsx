@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type Ref } from 'react';
+import { NARROW_MAX } from '../world/scene';
 import { FLAVOR, MODE_VERB, TIER_CLASS, feetFor, formatFeet, travelMs, type Mode } from '../modes';
 import { RollingNumber } from './RollingNumber';
 import { useReducedMotion } from '../motion';
@@ -114,6 +115,8 @@ export function Reveal({ prompt, result, mode, isLast, headingRef, onNext, skipp
   const reduced = useReducedMotion();
   const { play } = useSound();
   const world = useWorldStore();
+  const narrow = typeof window !== 'undefined' && window.innerWidth < NARROW_MAX;
+  const nextButton = useRef<HTMLButtonElement>(null);
   const tier = result.status === 'valid' ? result.tier : null;
   const tierClass = tier ? TIER_CLASS[tier - 1] : undefined;
   const color = tier ? TIER_COLORS[tier as Tier] : '#6E6E6E';
@@ -127,6 +130,12 @@ export function Reveal({ prompt, result, mode, isLast, headingRef, onNext, skipp
     if (!reduced) play(shot.name);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per result
   }, [result.promptId]);
+
+  useEffect(() => {
+    if (!narrow) return;
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    nextButton.current?.focus({ preventScroll: true });
+  }, [narrow, result.promptId]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -147,19 +156,21 @@ export function Reveal({ prompt, result, mode, isLast, headingRef, onNext, skipp
   const typed = result.matched?.name ?? result.input;
   return (
     <section className={classes} style={style} aria-labelledby="result-heading" onPointerDown={skipped ? undefined : onSkip} data-tier={tier ?? 'miss'}>
+      <div className="result-card__body">
       <h2 className="visually-hidden">{displayText(prompt.text)}</h2>
       <h3 id="result-heading" className={`result-card__level${result.status === 'outside_range' ? ' shake shake--0' : ''}`} tabIndex={-1} ref={headingRef}>
         {tierClass ?? 'AIRBALL'}
         <span className="visually-hidden">: {headline(result)}</span>
       </h3>
       {tierClass && <p className="result-card__pick">PICK</p>}
-      <input className="result-card__answer" readOnly aria-label="Your answer" value={typed.trim() === '' ? 'No answer' : `"${typed}"`} ref={(node) => node?.focus({ preventScroll: true })} />
+      <input className="result-card__answer" readOnly aria-label="Your answer" value={typed.trim() === '' ? 'No answer' : `"${typed}"`} ref={(node) => { if (node && !narrow) node.focus({ preventScroll: true }); }} />
       <p className="result-card__points">
         <strong>+<RollingNumber value={result.points} from={0} durationMs={travelMs(result.points)} instant={reduced || skipped || result.points === 0} /> PTS</strong>
         {result.points > 0 && <> · {verb.move} {formatFeet(feetFor(result.points))} ft</>}
       </p>
       {tier ? <p className="result-card__flavor">{FLAVOR[mode][tier - 1]}</p> : <p className="result-card__flavor">{explanation(prompt, result)}</p>}
-      <button type="button" className="primary result-card__next" onClick={onNext}>
+      </div>
+      <button ref={nextButton} type="button" className="primary result-card__next" onClick={onNext}>
         {isLast ? 'SEE RESULTS' : verb.next} <span className="arrow">▶</span>
       </button>
       <details className="result-card__more">
