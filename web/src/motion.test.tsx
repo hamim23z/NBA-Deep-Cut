@@ -1,10 +1,7 @@
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Confetti, CONFETTI_COUNT } from './components/Confetti';
-import { ShotLabel } from './components/ShotLabel';
 import { RollingNumber } from './components/RollingNumber';
 import { prefersReducedMotion, useReducedMotion } from './motion';
-import { shotForPoints } from './shots';
 
 
 function mockMatchMedia(reduce: boolean) {
@@ -15,20 +12,6 @@ function mockMatchMedia(reduce: boolean) {
 }
 
 afterEach(() => vi.unstubAllGlobals());
-
-describe('ShotLabel', () => {
-  it('shows the points and the tier name', () => {
-    render(<ShotLabel shot={shotForPoints(100)} />);
-    expect(screen.getByText('100')).toBeInTheDocument();
-    expect(screen.getByText('Poster dunk')).toBeInTheDocument();
-  });
-
-  it('shows 0 and Airball for a miss', () => {
-    render(<ShotLabel shot={shotForPoints(0)} />);
-    expect(screen.getByText('0')).toBeInTheDocument();
-    expect(screen.getByText('Airball')).toBeInTheDocument();
-  });
-});
 
 describe('reduced motion setting', () => {
   it('reads prefers-reduced-motion, and is false where matchMedia does not exist', () => {
@@ -66,14 +49,5 @@ describe('RollingNumber', () => {
     await act(async () => void vi.advanceTimersByTime(1000));
     expect(container.textContent).toBe('120');
     vi.useRealTimers();
-  });
-});
-
-describe('Confetti', () => {
-  it('has at most 40 pieces and is hidden from screen readers', () => {
-    const { container } = render(<Confetti />);
-    expect(container.querySelectorAll('.confetti__piece')).toHaveLength(CONFETTI_COUNT);
-    expect(CONFETTI_COUNT).toBeLessThanOrEqual(40);
-    expect(container.firstElementChild).toHaveAttribute('aria-hidden', 'true');
   });
 });

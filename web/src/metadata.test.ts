@@ -58,10 +58,11 @@ describe('no tracking', () => {
     }
   });
 
-  it('only stores things in localStorage under its own deepcut keys', () => {
+  it('only stores things in localStorage under its own nylon: keys (and reads the old deepcut. ones)', () => {
     const config = readFileSync(resolve(web, 'src/config.ts'), 'utf8');
-    for (const key of config.matchAll(/KEY = '([^']+)'/g)) expect(key[1]).toMatch(/^deepcut\./);
-    expect(readFileSync(resolve(web, 'src/sound.tsx'), 'utf8')).toMatch(/SOUND_KEY = 'deepcut\./);
+    for (const key of config.matchAll(/(?:KEY|Key) = (?:\([^)]*\): string => )?[`']([^`']+)[`']/g)) expect(key[1]).toMatch(/^nylon:/);
+    expect(config).toMatch(/SOUND_KEY = 'nylon:sound'/);
+    expect(config).toMatch(/LEGACY_KEYS/); // the old names are read once and migrated, never written
   });
 
   it('has no dependency on a tracking or analytics package', () => {

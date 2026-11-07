@@ -9,10 +9,12 @@ interface Props {
   durationMs?: number;
   /** Show the value at once. */
   instant?: boolean;
+  /** How to write the number (default: as it is). */
+  format?: (n: number) => string;
 }
 
 /** A number that rolls up to its new value. It only rewrites its own text, a few times a second, so it costs no layout. */
-export function RollingNumber({ value, from, delayMs = 0, durationMs = 500, instant = false }: Props) {
+export function RollingNumber({ value, from, delayMs = 0, durationMs = 500, instant = false, format }: Props) {
   const [shown, setShown] = useState(from ?? value);
   const current = useRef(shown);
   current.current = shown;
@@ -39,5 +41,5 @@ export function RollingNumber({ value, from, delayMs = 0, durationMs = 500, inst
       cancelAnimationFrame(frame);
     };
   }, [value, from, delayMs, durationMs, instant]);
-  return <>{shown}</>;
+  return <>{format ? format(shown) : shown}</>;
 }

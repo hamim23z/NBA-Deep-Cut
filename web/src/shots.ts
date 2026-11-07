@@ -42,5 +42,5 @@ export function shotForPoints(points: number): ShotInfo {
 
 /** The shot for a result: a valid answer by its points, anything else (wrong, timed out, outside the data range) an airball. */
 export function shotForResult(result: PromptResult): ShotInfo {
-  return result.status === 'valid' && result.tier !== null ? shotForPoints(TIER_POINTS[result.tier]) : shotForPoints(0);
+  return result.status === 'valid' && result.tier !== null ? shotForPoints(result.points) : shotForPoints(0);
 }

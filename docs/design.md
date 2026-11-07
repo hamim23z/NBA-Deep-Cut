@@ -1,64 +1,50 @@
-# Design notes: pixel art, the court and the panel
+# Design notes: NYLON and the moon world
 
-Deep Cut is one place, not a set of screens. A pixel-art basketball court is on screen from the first moment and stays mounted while the player moves between home, a prompt, the reveal, the results, the archive and how to play. The panel next to it carries every word and number; the court is decoration (`aria-hidden`) that makes each answer a shot.
+NYLON is one place: a full-screen pixel-art world that stays on screen from the first moment and never reloads while the player moves between home, a prompt, the result, the results, the archive and how to play. A card floats over it (a sheet at the bottom on a phone). The world is decoration (`aria-hidden`); the HUD and the card carry every word and number, and a polite live line says each result.
 
-The look is pixel art in black and orange, with chunky pixels, hard edges and scanlines. There are no smooth gradients, soft shadows, rounded corners or glow: edges are notched, shadows are hard offsets, dithering stands in for blending, and motion is stepped. How the pictures are made and shown is in [pixel-art.md](pixel-art.md).
+The look is black and orange, hard-edged pixel art: boxes are near-black (`#0A0A0A`, about 90% opaque) with a 4px orange border, shadows are hard offsets, motion is stepped or eased on transform and opacity only. No glow, no blur, no gradients on the UI (the sky is dithered steps in the pixel scene), no rounded corners, no image files. A test checks the stylesheets.
 
-## Layout
+## The world (`web/src/world/`)
 
-- **900 px and wider** (desktop, tablet landscape): a split screen. The panel (questions, controls, results) is on the left; the court fills the right half of the viewport and stays in place while the panel scrolls. `web/src/layout.ts` holds the 900 px breakpoint (`layoutForWidth`, `useLayout`); the CSS switches on the same width.
-- **Below 900 px** (phones, narrow windows): the court is a strip at the top (288 px, two screen pixels per game pixel; 430 px from 520 px wide), and it stays at the top (sticky) while the panel scrolls under it, so a shot is never scrolled out of view. No horizontal scrolling at 360 px.
-- The page order is the panel first and the court after it, so a screen reader reads the questions first and never meets the court.
+- **Drawn once, in code.** `scene.ts` fills RGBA buffers on a **360 x 215** grid (the static scene, the clouds, three star layers, two crowd-shimmer layers); `World.tsx` puts each buffer on a canvas with `putImageData`, scaled with `image-rendering: pixelated`. Nothing is redrawn per frame: the ambient motion is CSS on whole layers (stars fade, clouds slide, the crowd shimmers between two layers, two satellites cross).
+- **Top to bottom:** a dithered night sky (`#0A060C` to `#1E1620`) with stars; the **moon** at (132, 22), radius 16, off-white with craters, with a **hoop** under it (an orange rim at rows 36 to 38 and a small white net); pixel clouds; an arena **roof** at rows 128 to 135 with an opening above the ball column; **rafters**; retired-number **banners** (orange and cream, numbers from a 3 x 5 pixel font) across the width except the ball column; a dithered **crowd**; a hardwood **floor** from row 203 with a cream baseline; and the **arena hoop** at the ball column (backboard, orange rim at row 183, net, grey stanchion). A faint dotted guide runs down column 132.
+- **Where the grid sits (`sceneMetrics`).** On a wide screen the grid fills the screen (the larger of the two scales, centred; exactly 4 pixels per cell at 1440 x 860), but never so far up that the moon's level line runs under the HUD. On a phone (under 700 px) the grid is sized to the part between the HUD (96 px) and the bottom sheet (46% of the height), and the ball column is kept at about 30% across.
 
-## The court
+## Levels and modes
 
-A 172 x 215 game-pixel picture shown at a whole-number scale (`web/src/court/`): `court_bare.png` (stands, spotlight cones, LED ribbon, backboard, perspective hardwood, painted lane, three-point arc) with sprites on top: two crowd-sparkle frames and two spotlight beams, a jumbotron and a shot clock (real text in Press Start 2P over the stands), the rim in two halves with the ball between them, three net frames, the shooter in two poses, the dunker, the ball, a label and a burst of square particles. The court is a lazy-loaded chunk (15.4 KB gzipped JavaScript, 2.3 KB CSS, 33 KB for the court picture); the home screen does not wait for it.
+| Level | Row | Altitude | Pick | Tier | RARE pays | COMMON pays |
+| --- | --- | --- | --- | --- | --- | --- |
+| MOON | 24 | 3,200 ft | FRANCHISE | 1 | 10 | 100 |
+| ORBIT | 60 | 2,400 ft | ALL-STAR | 2 | 20 | 75 |
+| CLOUDS | 94 | 1,800 ft | STARTER | 3 | 35 | 55 |
+| ROOF | 128 | 1,100 ft | ROTATION | 4 | 55 | 35 |
+| RAFTERS | 162 | 500 ft | BENCH | 5 | 75 | 20 |
+| RIM | 190 | 60 ft | DEEP CUT | 6 | 100 | 10 |
 
-The panel and the court talk through a tiny store (`courtStore.tsx`): the panel publishes what is on (a question, a result, the points, the seconds left, the shot, the skip) and the court draws it. The shot clock on the court is a copy: the timer in the prompt card is the accessible one.
+The most famous answers (tier 1) are always on the moon; the mode decides what that is worth (`pointsFor(mode, tierIdx)` in `modes.ts`). RARE starts the ball on the moon and sinks, COMMON starts at the rim and climbs. A wrong, empty or late answer leaves the ball where it is, shakes it, and the card says AIRBALL and +0. Reaching the end level (RIM in RARE, MOON in COMMON) sets off a pixel confetti burst, a flash of that hoop, a ripple of its net, and the existing top-tier sound.
 
-- **Idle:** two spotlight beams sweep in steps, the crowd sparkles between two frames, and the ball bounces at centre court on a shadow that shrinks and grows.
-- **A question is on:** the shooter waits at the top of the key dribbling; the shot clock counts down and flickers red in the last 5 seconds.
-- **A result:** the shooter walks to a spot that depends on the tier, jumps, releases (his pose swaps), the ball hops to the hoop, the net swaps between its three frames, the jumbotron rolls the points up, and the tier label (with its number: "T5 Buzzer beater") pops in. A tap or Enter skips to the end.
+## Screens
 
-| Points | Shot | From |
-| --- | --- | --- |
-| 0 | airball: the ball misses everything and drops off the bottom | the right wing |
-| 10 | clank: the ball hits the front rim and bounces away; the rim shakes | close to the hoop, right |
-| 20 | rim rattle: two hits on the rim and in | the left elbow |
-| 35 | bank shot off the square | the left wing |
-| 55 | swish, the net rings | the right, far wing |
-| 75 | deep swish: a high arc, the net rings, a flicker of the crowd | far out on the left |
-| 100 | slam dunk: a drive, the dunker hangs from the rim, 28 square particles, a flicker and a short shake | driving from the lane |
-
-Only `transform` and `opacity` are animated. The ball's path is generated CSS keyframes (`geometry.ts`) with `steps()` timing that start from custom properties, so every shot starts at its own spot. With reduced motion there is a still court, and the shooter, the still ball at the end of the shot and the label (a plain fade) are all that change.
+- **Home:** the world behind with the ball at the mode's start; on the right "THE DAILY BASKETBALL SHOT", a big NYLON (Press Start 2P, a hard shadow in deep orange), the tagline, two mode cards (the chosen one has the orange border), a full-width "PLAY RARE SHOT" or "PLAY COMMON SHOT", Archive, How to play and the streaks.
+- **A prompt:** the HUD (NYLON chip, boxed ALTITUDE in feet, seven prompt pips coloured by tier with their numbers, boxed SCORE, sound), the depth gauge at the left (six rows, each a tier chip, the level name and its points, on the level's own line), dashed level lines across the scene, the mode chip at the bottom left, a dotted ruler at the right edge with an orange YOU arrow at the ball's level and small ghost balls for earlier answers, and the question card: the timer (a number and a striped bar), the era in orange, the question in large VT323 with its first letter capitalised (display only), the answer box and a one-line mode hint.
+- **After an answer:** the ball moves to its level (700 ms for a step, up to 1,000 ms for the whole way, eased in and out; speed streaks trail it) and the card turns into a result card with a border in the tier's colour: the level, its pick, the answer in quotes, "+75 PTS · sink to 2,400 ft", a line of flavour, and SINK or CLIMB to go on. The answer stays in a focused read-only input: Enter goes on (armed a moment after the card appears, so the Enter that submitted the answer does not count), Tab reaches the button. A tap skips the move. The famous and rare answers are in a closed section.
+- **Results:** the ball on its final level, the total, the final altitude, the best score in this mode, the streak, a tier breakdown, the share text (NYLON, mode, dive number, score, seven tier squares, the address), "Play the other mode" and a link to the archive.
+- **A phone (390 x 844):** the left gauge is hidden (the right ruler stays), the HUD shrinks to chips, the question card becomes a bottom sheet whose height never changes, the suggestions open upwards, and there is no horizontal scroll.
 
 ## Type and colour
 
-Press Start 2P for headings, numbers, buttons and small labels; VT323 for prompt text, answers, the input and body copy. Both are self-hosted through `@fontsource`, imported in `main.tsx` (no font service is called).
+Press Start 2P for headings, numbers and labels; VT323 for body text, the question and the input. Palette: ink `#0A0A0A`, orange `#FF6A13`, amber `#FFB347`, red `#FF3B1F`, cream `#F4EAD6`, greys `#A8A8A8`, `#6E6E6E`, `#3A3A3A`. Tier colours: 1 `#6E6E6E`, 2 `#A8A8A8`, 3 `#EDEDED`, 4 `#FFB020`, 5 `#FF6A13`, 6 `#FF3B1F`; the number is always shown with the colour (chips, pips, squares, the gauge), white text on tier 1 and ink on the rest, and the level name of tier 1 is drawn in `#A8A8A8` on the card. All text is at least 4.5 : 1 (`nylonText.test.tsx` computes it).
 
-| Token | Colour | Use |
-| --- | --- | --- |
-| ink | `#0a0a0a` | page, inputs, the court's frame |
-| panel | `#141414` | cards |
-| line | `#3a3a3a` | borders, dividers |
-| orange | `#ff6a13` | buttons, the court frame, headings |
-| amber | `#ffb347` | points, focus ring, links |
-| cream | `#f4ead6` | text |
-| muted | `#a8a8a8` | secondary text (never dimmer on dark) |
-| deep | `#8a3c0a` | hard shadows |
+## Accessibility
 
-Tier colours, the same on the court label, the reveal, the results squares, the archive strips and the chips: 1 `#6e6e6e`, 2 `#a8a8a8`, 3 `#ededed`, 4 `#ffb020`, 5 `#ff6a13`, 6 `#ff3b1f`. Text on tier 1 is white, on the rest ink, so every pair is at least 4.5 : 1 (`pixel.test.ts` computes them). A tier is never told by colour alone: every square, chip and label carries its number or its name. The share squares follow the same order: ⬛ miss, 🔲 1, 🔳 2, ⬜ 3, 🟨 4, 🟧 5, 🟥 6 (emoji have a limited palette, so the two greys are black and white buttons).
-
-Pixel shapes without images: a **notched corner** is four box-shadow bars (`--notch`), so the corners are cut, a **hard shadow** is a zero-blur offset, the **scanlines** are two-pixel stripes behind the page and over the court, and the **timer bar** is a row of segments.
+The world is `aria-hidden`. A visually hidden `aria-live="polite"` line next to it says each result ("ORBIT, 75 points, 185 total", or "AIRBALL, 0 points, 0 total"). The HUD's altitude, prompt pips and score are real text and read from the same store the world reads (one source of truth, no second timer). Keyboard play: the input, Answer, then on the result the kept answer input (Enter goes on) and the next button. Reduced motion: moves are instant, nothing ambient runs, there is no celebration, and the streaks and shake are off.
 
 ## Self-critique rounds
 
-Screenshots at 360, 768, 1280 and 1920 px of the home screen, a prompt with the input focused, the reveal of a high-tier and a zero-point answer, the results and the archive (`docs/screenshots/pixel/`), judged against: a place, visual hierarchy, a readable left panel, anything cramped, flat, misaligned or generic, one product, and the krillion.io look (the site could not be opened from the build environment, so the direction was taken from the brief: chunky pixels, hard edges, scanlines, tight palette, notched corners, monospace pixel type, black and orange).
+Screenshots at 1440 x 860, 1280 x 720 and 390 x 844 of home, a RARE prompt and answer, a COMMON prompt and answer, an airball, the end-level celebration and the results (`docs/screenshots/nylon/`), judged against: the scene fills the screen, nothing overlaps the moon, the ball column or the HUD, the gauge rows sit on the level lines, the card never covers the ball, text is readable, no horizontal scroll, no glow, gradient UI or rounded cards.
 
-**Round 1 (first build).** Desktop worked at once: the court read as a place, and the wordmark, the dithered stands and the jumbotron gave a clear look. Problems: on a phone the court was drawn at one screen pixel per game pixel, tiny in a mostly black strip (the 4 px border took the height below the two-times threshold); at 1920 px the cards sat left of the header (a card margin overrode the centring); the secondary buttons vanished (dark on dark); the speaker was a smooth emoji in a pixel page; the zero-points label was a muddy grey with an orange shadow; the answer box was cramped beside its button on a phone and the prompt took seven lines; the shooter was clipped at the edge of the 640 px pane at the far spots; the tier 1 share square was tiny. Fixed: the strip is 288 px (and 430 px on tablets), the card margins, a pixel speaker drawn in 2 px squares, a grey shadow for a miss, a stacked answer row and smaller prompt text under 30 rem, shooting spots moved in from the edges, and new share squares.
+**Round 1.** Found: the results card was taller than the screen and, centred in a flex column, its top was cut off and unreachable; the card covered the YOU arrow on the ruler; the answer text was selected in orange; the ball (a cross of seams) read like a crosshair on the moon; the crowd and stars were too orange and busy; the "▶" on the button was a tiny fallback glyph; on a phone the ball was 15 px and the ghost balls sat on the YOU label; at 1280 x 720 the moon's gauge row ran under the HUD, the mode chip sat on the rim row, and the home card was taller than the window. Fixed: the stage no longer centres with `justify-content` (auto margins instead), the results' answer list is a closed section and the breakdown is two columns, the card keeps 104 px from the right edge, no selection, a ball with a cross and two curved seams, a darker crowd and fewer stars, an enlarged arrow glyph, a 30 px ball and ghost balls on the ruler's line on a phone, a scene offset that keeps the moon line 70 px from the top, a smaller bottom-left chip, a compact HUD, and a tightened home card on short screens.
 
-**Round 2.** Secondary buttons were still faint on the page, so they take the panel grey on the page and ink inside a card; the phone home screen put the play button at the fold, so the type and spacing are tighter there; at 1600 px and wider the wordmark and tagline grow. Axe (home, prompt, reveal, results, archive: no violations), a keyboard-only dive (Tab to Play, type, arrow, Enter, no pointer), the console (no errors) and reduced motion (no running animation on the court) were checked.
+**Round 2.** Rechecked every state at all three sizes: no horizontal scroll, no marker or label on the moon, nothing over the ball column, the gauge rows on their lines, the card clear of the ball. Axe found nothing on home, a prompt, a result, the results, the archive and how to play (desktop and phone), a keyboard-only dive ran with no console errors, and no animation ran under reduced motion.
 
-**Round 3.** A contact sheet of all seven shots at three moments each (`all-seven-shots.png`) showed each shot distinct, the dunker on the rim, the flicker on the deep swish and the dunk, and the label legible; the final screenshots were retaken.
-
-**Still weak, honestly.** The shooter is one sprite size at every spot, because a fractional scale would smear its pixels, so a deep shot does not look farther away, only farther along the floor. The waiting shooter faces away from the viewer. On tablets in portrait the court sits in black bars at three screen pixels per game pixel. At two screen pixels per game pixel the jumbotron's text is the 8 px minimum of the font. The two greys in the share squares are approximations. The ball does not spin. A next round would draw a second shooter facing the viewer and shorter jumbotron labels for small strips.
+**Limits, honestly.** The speed streaks follow the real direction of the move (below the ball when it rises, above it when it falls), which in COMMON and RARE matches the brief on the first move but can differ later, because every answer sends the ball to its own level from wherever it is. On a window shorter than about 700 px the results card scrolls inside its frame. The share emoji use the same six tier squares as before (⬛ is a miss), and emoji have a limited palette. On a phone the scene is cropped around the ball column, so the left of the arena is not seen.

@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { useCourtStore } from './court/courtStore';
 import { Final } from './components/Final';
 import { PromptScreen } from './components/PromptScreen';
 import { Reveal } from './components/Reveal';
-import { Scoreboard } from './components/Scoreboard';
-import { useReducedMotion } from './motion';
 import { currentPrompt, diveReducer, isOver, isRevealed, startDive, totalPoints } from './dive2';
 import type { Index } from './matching';
+import { applyMode, type Mode } from './modes';
+import { marksFrom, useWorldStore } from './world/worldStore';
 import type { Prompt, PromptResult } from './types';
 
 interface Props {
@@ -14,14 +13,18 @@ interface Props {
   prompts: readonly Prompt[];
   index: Index;
   diveNumber: number;
+  mode: Mode;
+  /** The best total in this mode on this device (before this dive). */
+  bestBefore: number;
   outsideNames?: readonly string[];
   /** Called once, when the last prompt has been answered and the results screen appears. */
   onFinish: (results: PromptResult[]) => void;
   onHome: () => void;
   onArchive: () => void;
   onHowTo: () => void;
-  /** Streak shown on the results screen, and whether it just went up. */
-  streak?: { value: number; increased: boolean };
+  onOtherMode: (mode: Mode) => void;
+  /** Streak shown on the results screen. */
+  streak?: { value: number };
   /** Resume a dive after a reload: the answers already given, and how much of the prompt on screen has gone. */
   resume?: { results: PromptResult[]; elapsedMs: number };
   /** Called after every answer and whenever a new prompt appears, so progress can be saved. startedAt is null on a result screen. */
@@ -29,7 +32,7 @@ interface Props {
   clock?: () => number;
 }
 
-export function Dive({ prompts, index, diveNumber, outsideNames, onFinish, onHome, onArchive, onHowTo, streak, resume, onProgress, clock = Date.now }: Props) {
+export function Dive({ prompts, index, diveNumber, mode, bestBefore, outsideNames, onFinish, onHome, onArchive, onHowTo, onOtherMode, streak, resume, onProgress, clock = Date.now }: Props) {
   const [state, dispatch] = useReducer(diveReducer, undefined, () => {
     const fresh = startDive([...prompts]);
     return resume ? { ...fresh, results: resume.results, index: resume.results.length } : fresh;
@@ -37,13 +40,12 @@ export function Dive({ prompts, index, diveNumber, outsideNames, onFinish, onHom
   const startedAt = useRef<number | null>(null);
   const resumedElapsed = useRef(resume?.elapsedMs ?? 0);
   const resumeIndex = useRef(resume ? resume.results.length : -1);
-  const resultRef = useRef<HTMLHeadingElement>(null);
   const finalRef = useRef<HTMLHeadingElement>(null);
+  const resultRef = useRef<HTMLHeadingElement>(null);
   const firstRender = useRef(true);
   const finished = useRef(false);
-  const reduced = useReducedMotion();
-  const court = useCourtStore();
-  const [skippedAt, setSkippedAt] = useState(-1); // the prompt whose shot the player skipped
+  const world = useWorldStore();
+  const [skippedAt, setSkippedAt] = useState(-1); // the prompt whose move the player skipped
 
   const prompt = currentPrompt(state);
   const over = isOver(state);
@@ -60,22 +62,20 @@ export function Dive({ prompts, index, diveNumber, outsideNames, onFinish, onHom
   const result = state.results[state.index];
   const points = useMemo(() => totalPoints(state.results), [state.results]);
 
-  // Move focus to what just appeared. A new prompt focuses its own input (see AnswerInput).
+  // The results heading takes focus when the dive ends. (After an answer the card's own input keeps it; a new prompt focuses its input.)
   useEffect(() => {
     if (firstRender.current) {
       firstRender.current = false;
       return;
     }
     if (over) finalRef.current?.focus();
-    else if (revealed) resultRef.current?.focus();
   }, [state.index, revealed, over]);
 
-  // The court follows the dive: which prompt, the points, and what is on (a question or a result).
-  const dived = totalPoints(state.results);
+  // The world follows the dive: the mode, which prompt, the points, the answers so far, and what is on.
   useEffect(() => {
     if (over) return;
-    court.set({ phase: revealed ? 'shot' : 'prompt', promptNumber: Math.min(state.index + 1, state.prompts.length), total: state.prompts.length, points: dived, diveNumber, ...(revealed ? {} : { clock: 25, shot: null, skipped: false, replay: null }) });
-  }, [court, over, revealed, state.index, state.prompts.length, dived, diveNumber]);
+    world.set({ mode, phase: revealed ? 'result' : 'prompt', promptNumber: Math.min(state.index + 1, state.prompts.length), total: state.prompts.length, points, diveNumber, marks: marksFrom(state.results), ...(revealed ? {} : { skipped: false }) });
+  }, [world, mode, over, revealed, state.index, state.results, state.prompts.length, points, diveNumber]);
 
   useEffect(() => {
     if (over && !finished.current) {
@@ -85,52 +85,37 @@ export function Dive({ prompts, index, diveNumber, outsideNames, onFinish, onHom
   }, [over, state.results, onFinish]);
 
   if (over || !prompt) {
-    return <Final prompts={state.prompts} results={state.results} diveNumber={diveNumber} headingRef={finalRef} onHome={onHome} onArchive={onArchive} onHowTo={onHowTo} streak={streak} />;
+    const best = Math.max(bestBefore, points);
+    return <Final prompts={state.prompts} results={state.results} diveNumber={diveNumber} mode={mode} best={best} headingRef={finalRef} onHome={onHome} onArchive={onArchive} onHowTo={onHowTo} onOtherMode={onOtherMode} streak={streak} />;
   }
   const skipped = skippedAt === state.index;
-  const before = totalPoints(state.results.slice(0, state.index));
-  const board = (
-    <Scoreboard
-      number={state.index + 1}
-      total={state.prompts.length}
-      pointsBefore={revealed ? before : points}
-      points={points}
-      diveNumber={diveNumber}
-      rollDelayMs={reduced || skipped ? 0 : 950}
-      instant={reduced || skipped || !revealed}
-    />
-  );
   if (revealed && result) {
     return (
-      <>
-        {board}
-        <Reveal
-          key={prompt.id}
-          prompt={prompt}
-          result={result}
-          isLast={state.index === state.prompts.length - 1}
-          headingRef={resultRef}
-          onNext={() => dispatch({ type: 'next' })}
-          skipped={skipped}
-          onSkip={() => {
-            setSkippedAt(state.index);
-            court.set({ skipped: true });
-          }}
-        />
-      </>
+      <Reveal
+        key={prompt.id}
+        prompt={prompt}
+        result={result}
+        mode={mode}
+        isLast={state.index === state.prompts.length - 1}
+        headingRef={resultRef}
+        onNext={() => dispatch({ type: 'next' })}
+        skipped={skipped}
+        onSkip={() => {
+          setSkippedAt(state.index);
+          world.set({ skipped: true });
+        }}
+      />
     );
   }
   return (
-    <>
-      {board}
-      <PromptScreen
-        key={prompt.id}
-        prompt={prompt}
-        index={index}
-        outsideNames={outsideNames}
-        elapsedMs={state.index === resumeIndex.current ? resumedElapsed.current : 0}
-        onResult={(r: PromptResult) => dispatch({ type: 'submit', result: r })}
-      />
-    </>
+    <PromptScreen
+      key={prompt.id}
+      prompt={prompt}
+      mode={mode}
+      index={index}
+      outsideNames={outsideNames}
+      elapsedMs={state.index === resumeIndex.current ? resumedElapsed.current : 0}
+      onResult={(r: PromptResult) => dispatch({ type: 'submit', result: applyMode(r, mode) })}
+    />
   );
 }

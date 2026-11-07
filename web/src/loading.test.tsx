@@ -28,7 +28,7 @@ describe('while the data loads', () => {
     expect(screen.getByText(/loading the game/i).closest('[role="status"]')).not.toBeNull();
     expect(document.querySelector('.loading__ball')).not.toBeNull();
     release();
-    expect(await screen.findByRole('button', { name: /^Play today/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ })).toBeInTheDocument();
     expect(screen.queryByText(/loading the game/i)).not.toBeInTheDocument();
   });
 });
@@ -44,7 +44,7 @@ describe('when the data cannot be loaded', () => {
     expect(alert).toHaveTextContent(/could not load universe\.json \(503\)/i);
     failing = false;
     await user.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(await screen.findByRole('button', { name: /^Play today/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
@@ -79,7 +79,7 @@ describe('when the data cannot be loaded', () => {
   it('a missing outside_range.json is not an error', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => (String(url).endsWith('outside_range.json') ? new Response('', { status: 404 }) : ok(url))));
     render(<App now={() => NOW} search="" storage={null} />);
-    expect(await screen.findByRole('button', { name: /^Play today/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ })).toBeInTheDocument();
   });
 });
 
@@ -106,10 +106,10 @@ describe('the data is loaded once and kept in memory', () => {
     const fetchMock = vi.fn(async (url: string) => ok(url));
     vi.stubGlobal('fetch', fetchMock);
     const first = render(<App now={() => NOW} search="" storage={null} />);
-    await screen.findByRole('button', { name: /^Play today/ });
+    await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ });
     first.unmount();
     render(<App now={() => NOW} search="" storage={null} />);
-    await screen.findByRole('button', { name: /^Play today/ });
+    await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ });
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

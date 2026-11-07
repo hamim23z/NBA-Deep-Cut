@@ -1,3 +1,4 @@
+import { displayText } from './components/PromptText';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -56,7 +57,7 @@ function renderApp(day: Date = DAY.launch, props: AppProps = {}) {
 
 async function start(user: User, day: Date = DAY.launch, props: AppProps = {}) {
   const r = renderApp(day, props);
-  await user.click(await screen.findByRole('button', { name: /^Play today/ }));
+  await user.click(await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ }));
   await screen.findByRole('combobox');
   return r;
 }
@@ -66,7 +67,7 @@ const typeAnswer = async (user: User, text: string) => {
   await user.type(screen.getByRole('combobox'), text);
   await user.keyboard('{Enter}');
 };
-const next = async (user: User, last = false) => user.click(await screen.findByRole('button', { name: last ? 'See results' : 'Next prompt' }));
+const next = async (user: User, last = false) => user.click(await screen.findByRole('button', { name: last ? 'SEE RESULTS ▶' : /^(SINK|CLIMB) ▶$/ }));
 const resultHeading = async () => (await screen.findByRole('heading', { level: 3, name: /points|data range/ })).textContent ?? '';
 
 /** Answer all 7 prompts of the dive on screen with each prompt's first valid answer. Returns the total points. */
@@ -103,7 +104,7 @@ describe('loading and the screens around the game', () => {
   it('shows the home screen with Play, Archive and How to play, today\'s dive number, and no demo note about real data', async () => {
     const user = setup();
     renderApp();
-    expect(await screen.findByRole('button', { name: /^Play today/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Archive' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'How to play' })).toBeInTheDocument();
     expect(screen.getByText('#1')).toBeInTheDocument();
@@ -114,7 +115,7 @@ describe('loading and the screens around the game', () => {
 
   it('labels the made-up fixture data clearly (only the fixtures are made up)', async () => {
     renderApp();
-    await screen.findByRole('button', { name: /^Play today/ });
+    await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ });
     expect(screen.getByText(/made up for the tests/i)).toBeInTheDocument();
   });
 
@@ -124,14 +125,15 @@ describe('loading and the screens around the game', () => {
     await user.click(await screen.findByRole('button', { name: 'How to play' }));
     expect(screen.getByText(/7 prompts/)).toBeInTheDocument();
     expect(screen.getByText(/25 seconds/)).toBeInTheDocument();
-    const table = screen.getByRole('table', { name: 'Points by tier' });
-    const points = within(table).getAllByRole('row').slice(1).map((r) => within(r).getAllByRole('cell').pop()?.textContent);
-    expect(points).toEqual(['10', '20', '35', '55', '75', '100']);
+    const table = screen.getByRole('table', { name: 'Levels and points' });
+    const rows = within(table).getAllByRole('row').slice(1).map((r) => within(r).getAllByRole('cell').map((c) => c.textContent));
+    expect(rows.map((r) => r[1])).toEqual(['10', '20', '35', '55', '75', '100']); // rare mode: the rarer, the more
+    expect(rows.map((r) => r[2])).toEqual(['100', '75', '55', '35', '20', '10']); // common mode: the more famous, the more
     expect(screen.getByText(/estimate of how famous/i)).toBeInTheDocument();
     expect(screen.getByText(/approximation/i)).toBeInTheDocument();
     expect(screen.getByText(/2001-02 season onward/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Back' }));
-    expect(screen.getByRole('button', { name: /^Play today/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ })).toBeInTheDocument();
   });
 
   it('says so when the data cannot be loaded or does not follow the schema', async () => {
@@ -155,7 +157,7 @@ describe('loading and the screens around the game', () => {
       return new Response(JSON.stringify(u.endsWith('universe.json') ? readJson(UNIVERSE_PATH) : readJson(PROMPTS_PATH)), { status: 200 });
     }));
     renderApp();
-    expect(await screen.findByRole('button', { name: /^Play today/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ })).toBeInTheDocument();
   });
 });
 
@@ -163,8 +165,8 @@ describe('a prompt', () => {
   it('shows the prompt, a 25 second countdown and a text input', async () => {
     const user = setup();
     await start(user);
-    expect(promptText()).toBe(expectedDive()[0]!.text);
-    expect(screen.getByText(/Prompt 1 of 7/)).toBeInTheDocument();
+    expect(promptText()).toBe(displayText(expectedDive()[0]!.text));
+    expect(await screen.findByText(/Prompt 1 of 7/)).toBeInTheDocument();
     expect(screen.getByRole('timer')).toHaveTextContent('25');
     expect(screen.getByRole('combobox')).toHaveFocus();
     await act(async () => void vi.advanceTimersByTime(5000));
@@ -185,7 +187,7 @@ describe('a prompt', () => {
     await start(user);
     await user.type(screen.getByRole('combobox'), 'Aldric Ash');
     await act(async () => void vi.advanceTimersByTime(25_200));
-    expect(await resultHeading()).toBe("Time's up: 0 points");
+    expect(await resultHeading()).toBe("AIRBALL: Time's up: 0 points");
     expect(screen.getByText(/ran out of time/i)).toBeInTheDocument();
   });
 
@@ -250,14 +252,14 @@ describe('the reveal', () => {
     const sorted = validAnswers(prompt).map((a, i) => ({ a, i }));
     const pick = validAnswers(prompt)[4]!;
     await typeAnswer(user, pick.name);
-    expect(await resultHeading()).toBe(`Tier ${pick.tier}: ${pick.points} points`);
+    expect(await resultHeading()).toContain(`Tier ${pick.tier}: ${pick.points} points`);
     const famous = [...sorted].sort((x, y) => x.a.tier - y.a.tier || x.i - y.i).slice(0, 3).map((x) => x.a.name);
     const rarest = [...sorted].sort((x, y) => y.a.tier - x.a.tier || y.i - x.i).slice(0, 3).map((x) => x.a.name);
     const lists = screen.getAllByRole('list').filter((l) => l.className === 'answers');
     expect(within(lists[0]!).getAllByRole('listitem').map((li) => li.querySelector('.answers__name')?.textContent)).toEqual(famous);
     expect(within(lists[1]!).getAllByRole('listitem').map((li) => li.querySelector('.answers__name')?.textContent)).toEqual(rarest);
     expect(screen.getByText(`All ${prompt.answers.length} valid answers`)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 3, name: /points/ })).toHaveFocus();
+    expect(screen.getByLabelText('Your answer')).toHaveFocus(); // the answer stays focused: Enter goes on, Tab reaches the next button
   });
 
   it('says an invalid answer is invalid, and names the person it recognized', async () => {
@@ -266,7 +268,7 @@ describe('the reveal', () => {
     const prompt = expectedDive()[0]!;
     const other = notValid(prompt);
     await typeAnswer(user, other);
-    expect(await resultHeading()).toBe('Not a valid answer: 0 points');
+    expect(await resultHeading()).toBe('AIRBALL: Not a valid answer: 0 points');
     expect(screen.getByText(`${other} is not a valid answer for this prompt.`)).toBeInTheDocument();
   });
 
@@ -274,7 +276,7 @@ describe('the reveal', () => {
     const user = setup();
     await start(user);
     await typeAnswer(user, 'Orson Quillfeather');
-    expect(await resultHeading()).toBe('Outside the data range');
+    expect(await resultHeading()).toBe('AIRBALL: Outside the data range');
     expect(screen.getByText(/does not count against you/i)).toBeInTheDocument();
     expect(screen.queryByText(/not a valid answer/i)).not.toBeInTheDocument();
   });
@@ -295,7 +297,7 @@ describe('a full dive', () => {
 
     for (let i = 0; i < 7; i++) {
       const p = dive[i]!;
-      expect(promptText()).toBe(p.text);
+      expect(promptText()).toBe(displayText(p.text));
       expect(screen.getByText(new RegExp(`Prompt ${i + 1} of 7`))).toBeInTheDocument();
       const answers = validAnswers(p);
       if (i === 0) {
@@ -332,7 +334,7 @@ describe('a full dive', () => {
     expect(squares).toHaveLength(7);
     squares.forEach((s, i) => {
       const t = tiers[i];
-      expect(s).toHaveClass(t === null ? 'square--miss' : `square--t${t}`);
+      expect(s.querySelector('.square__tier')?.textContent).toBe(t === null ? '×' : String(t));
       expect(s.getAttribute('aria-label')).toMatch(new RegExp(`^Prompt ${i + 1}: ${t === null ? '(not a valid|time ran out|outside)' : `tier ${t}, ${TIER_POINTS[t as 1]} points`}`));
     });
     expect(tiers.filter((t) => t === null)).toHaveLength(4);
@@ -340,8 +342,8 @@ describe('a full dive', () => {
 
     // share: the line uses the dive number, is shown, and copies to the clipboard
     const preview = screen.getByLabelText('Your result');
-    expect(preview.textContent).toMatch(new RegExp(`^Deep Cut #1: ${expected}\\n.{7,21}\\nhttps://`, 's'));
-    await user.click(screen.getByRole('button', { name: 'Copy result' }));
+    expect(preview.textContent).toMatch(new RegExp(`^NYLON RARE #1: ${expected}\\n.{7,21}\\nhttps://`, 's'));
+    await user.click(screen.getByRole('button', { name: 'COPY RESULT' }));
     expect(await navigator.clipboard.readText()).toBe(preview.textContent);
     expect(screen.getByTestId('announcer')).toHaveTextContent('Copied to the clipboard.');
   });
@@ -351,13 +353,13 @@ describe('a full dive', () => {
     await start(user);
     await playWholeDive(user, expectedDive());
     vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('denied'));
-    await user.click(screen.getByRole('button', { name: 'Copy result' }));
+    await user.click(screen.getByRole('button', { name: 'COPY RESULT' }));
     const box = await screen.findByLabelText('Your result, ready to copy');
-    expect((box as HTMLTextAreaElement).value).toMatch(/^Deep Cut #1: \d+\n/);
+    expect((box as HTMLTextAreaElement).value).toMatch(/^NYLON RARE #1: \d+\n/);
     expect(screen.getByTestId('announcer')).toHaveTextContent(/Could not copy/);
     await user.click(screen.getByRole('button', { name: 'Home' }));
-    expect(await screen.findByRole('button', { name: /^View results/ })).toBeInTheDocument(); // no replaying today's dive
-    expect(screen.queryByRole('button', { name: /^Play today/ })).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^VIEW (RARE|COMMON) RESULTS$/ })).toBeInTheDocument(); // no replaying today's dive
+    expect(screen.queryByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ })).not.toBeInTheDocument();
   });
 });
 
@@ -366,15 +368,15 @@ describe('the daily rotation', () => {
     serveFiles(twoDives());
     const user = setup();
     await start(user, DAY.second);
-    expect(promptText()).toBe(twoDives()[7]!.text); // dive #2 is prompts 7 to 13
-    expect(screen.getByText(/Prompt 1 of 7/)).toBeInTheDocument();
+    expect(promptText()).toBe(displayText(twoDives()[7]!.text)); // dive #2 is prompts 7 to 13
+    expect(await screen.findByText(/Prompt 1 of 7/)).toBeInTheDocument();
   });
 
   it('wraps to the first dive when the file has fewer dives than days', async () => {
     serveFiles(twoDives());
     const user = setup();
     await start(user, DAY.third); // dive #3 of a 2-dive file is dive #1 again
-    expect(promptText()).toBe(twoDives()[0]!.text);
+    expect(promptText()).toBe(displayText(twoDives()[0]!.text));
   });
 
   it('gives everyone the same dive on the same New York day, whatever the clock says in UTC', async () => {
@@ -391,7 +393,7 @@ describe('before the launch', () => {
     renderApp(DAY.beforeLaunch);
     expect(await screen.findByRole('heading', { name: 'Coming soon' })).toBeInTheDocument();
     expect(screen.getByText('3 November 2026')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Play today/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Play-test' })).not.toBeInTheDocument();
   });
 
@@ -400,7 +402,7 @@ describe('before the launch', () => {
     const { storage } = renderApp(DAY.beforeLaunch, { search: '?preview=1' });
     await user.click(await screen.findByRole('button', { name: 'Play-test' }));
     await screen.findByRole('combobox');
-    expect(promptText()).toBe(expectedDive()[0]!.text);
+    expect(promptText()).toBe(displayText(expectedDive()[0]!.text));
     await playWholeDive(user, expectedDive());
     await user.click(screen.getByRole('button', { name: 'Home' }));
     expect(await screen.findByRole('heading', { name: 'Coming soon' })).toBeInTheDocument();
@@ -411,12 +413,12 @@ describe('before the launch', () => {
     const user = setup();
     const { storage } = renderApp(DAY.beforeLaunch, { search: '?preview=1&today=2026-11-04' });
     expect(await screen.findByText('#2')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /^Play today/ }));
+    await user.click(screen.getByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ }));
     await screen.findByRole('combobox');
     await playWholeDive(user, divePrompts(mockPrompts(), 2));
     const keys = [...(storage as ReturnType<typeof memory>).data.keys()];
     expect(keys.length).toBeGreaterThan(0);
-    expect(keys.every((k) => k.startsWith('deepcut.preview.'))).toBe(true); // never the real keys
+    expect(keys.every((k) => k.startsWith('nylon:preview:'))).toBe(true); // never the real keys
   });
 
   it('ignores ?today=... without ?preview=1 and ignores a bad date', async () => {
@@ -436,8 +438,8 @@ describe('already played today', () => {
     renderApp(DAY.launch, { storage: store }); // a reload on the same device
     expect(await screen.findByRole('heading', { name: 'Dive complete' })).toBeInTheDocument();
     expect(screen.getByLabelText(`Total ${total} out of 700`)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Copy result' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Your result').textContent).toMatch(new RegExp(`^Deep Cut #1: ${total}\\n`));
+    expect(screen.getByRole('button', { name: 'COPY RESULT' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Your result').textContent).toMatch(new RegExp(`^NYLON RARE #1: ${total}\\n`));
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
@@ -448,7 +450,7 @@ describe('already played today', () => {
     await playWholeDive(user, expectedDive());
     first.unmount();
     renderApp(DAY.second, { storage: store });
-    expect(await screen.findByRole('button', { name: /^Play today/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ })).toBeInTheDocument();
     expect(screen.getByText('#2')).toBeInTheDocument();
   });
 });
@@ -525,7 +527,7 @@ describe('the archive', () => {
     expect(screen.queryByRole('button', { name: 'Play dive 1' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Results of dive 1' }));
     expect(await screen.findByRole('heading', { name: 'Dive complete' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Your result').textContent).toMatch(/^Deep Cut #1: /);
+    expect(screen.getByLabelText('Your result').textContent).toMatch(/^NYLON RARE #1: /);
   });
 
   it('plays a past dive from the archive: counts for the archive but not for the streak, and the share line uses its number', async () => {
@@ -536,13 +538,13 @@ describe('the archive', () => {
     await user.click(screen.getByRole('button', { name: 'Play dive 2' }));
     await screen.findByRole('combobox');
     const total = await playWholeDive(user, divePrompts(mockPrompts(), 2));
-    expect(screen.getByLabelText('Your result').textContent).toMatch(new RegExp(`^Deep Cut #2: ${total}\\n`));
+    expect(screen.getByLabelText('Your result').textContent).toMatch(new RegExp(`^NYLON RARE #2: ${total}\\n`));
     await user.click(screen.getByRole('button', { name: 'Archive' }));
     expect(screen.getByLabelText(`${total} out of 700`)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByTestId('streak-current')).toHaveTextContent('0 days');
     expect(screen.getByTestId('streak-best')).toHaveTextContent('0 days');
-    expect(screen.getByRole('button', { name: /^Play today/ })).toBeInTheDocument(); // today's dive is still waiting
+    expect(screen.getByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ })).toBeInTheDocument(); // today's dive is still waiting
   });
 
   it("playing today's dive from the archive counts as the daily play", async () => {
@@ -562,12 +564,12 @@ describe('storage that does not work', () => {
     const user = setup();
     renderApp(DAY.launch, { storage: null });
     expect(await screen.findByText(/not saving anything/i)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /^Play today/ }));
+    await user.click(screen.getByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ }));
     await screen.findByRole('combobox');
     await playWholeDive(user, expectedDive());
     expect(screen.getByRole('heading', { name: 'Dive complete' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Home' }));
-    expect(screen.getByRole('button', { name: /^View results/ })).toBeInTheDocument(); // kept for this visit
+    expect(screen.getByRole('button', { name: /^VIEW (RARE|COMMON) RESULTS$/ })).toBeInTheDocument(); // kept for this visit
     expect(screen.getByTestId('streak-current')).toHaveTextContent('1 day');
   });
 
@@ -582,7 +584,7 @@ describe('storage that does not work', () => {
       },
     };
     renderApp(DAY.launch, { storage: broken });
-    await user.click(await screen.findByRole('button', { name: /^Play today/ }));
+    await user.click(await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ }));
     await screen.findByRole('combobox');
     await playWholeDive(user, expectedDive());
     await user.click(screen.getByRole('button', { name: 'Home' }));
@@ -591,8 +593,8 @@ describe('storage that does not work', () => {
 
   it('ignores corrupted saved data and starts fresh', async () => {
     const store = memory();
-    store.data.set('deepcut.v1', '{not json');
+    store.data.set('nylon:history:rare', '{not json');
     renderApp(DAY.launch, { storage: store });
-    expect(await screen.findByRole('button', { name: /^Play today/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ })).toBeInTheDocument();
   });
 });

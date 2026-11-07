@@ -5,7 +5,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { suggest } from './autocomplete';
-import { PromptText, splitEra } from './components/PromptText';
+import { PromptText, displayText, splitEra } from './components/PromptText';
 import { Reveal, mostFamous, rarestOthers } from './components/Reveal';
 import { parsePrompts, parseUniverse } from './loadData';
 import { buildIndex, matchAnswer } from './matching';
@@ -26,7 +26,8 @@ describe('the era in a prompt', () => {
     expect(splitEra('No era here')).toBeNull();
     const text = 'Since 2001-02 (through 2025-26), name a player who scored 50 or more points in a regular-season game.';
     const { container } = render(<h2><PromptText text={text} /></h2>);
-    expect(container.textContent).toBe(text);
+    expect(container.textContent).toBe(displayText(text)); // the words are the prompt's; only the first letter of the task is capitalised
+    expect(container.textContent?.toLowerCase()).toBe(text.toLowerCase());
   });
 
   it('every real prompt splits that way and none is so long that it cannot fit a phone (under 200 characters)', () => {
@@ -50,14 +51,14 @@ describe('the reveal lists', () => {
   });
 
   it('hide the rarest section when there is nothing different to show', () => {
-    render(<Reveal prompt={prompt(answers([1, 1, 1]))} result={result} isLast={false} headingRef={null} onNext={() => undefined} skipped onSkip={() => undefined} />);
+    render(<Reveal mode="rare" prompt={prompt(answers([1, 1, 1]))} result={result} isLast={false} headingRef={null} onNext={() => undefined} skipped onSkip={() => undefined} />);
     expect(screen.getByText('The most famous valid answers')).toBeInTheDocument();
     expect(screen.queryByText('The rarest valid answers')).not.toBeInTheDocument();
   });
 
   it('build the full list of a 400-answer prompt only when it is opened', async () => {
     const many = answers(Array.from({ length: 400 }, (_, i) => 1 + (i % 6)));
-    render(<Reveal prompt={prompt(many)} result={result} isLast={false} headingRef={null} onNext={() => undefined} skipped onSkip={() => undefined} />);
+    render(<Reveal mode="rare" prompt={prompt(many)} result={result} isLast={false} headingRef={null} onNext={() => undefined} skipped onSkip={() => undefined} />);
     expect(document.querySelector('.answers--all')).toBeNull();
     await userEvent.setup().click(screen.getByText('All 400 valid answers'));
     expect(document.querySelectorAll('.answers--all > li')).toHaveLength(400);

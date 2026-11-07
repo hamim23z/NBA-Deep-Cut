@@ -1,14 +1,14 @@
-# Deep Cut: Spec & Build Plan
+# NYLON: Spec & Build Plan
 
 ## Overview
 
-Deep Cut is a daily basketball trivia game where obscure correct answers score more than obvious ones. It is inspired by the daily rare-answer trivia format (Krillion) but built entirely on NBA data.
+NYLON (called Deep Cut until session 7f) is a daily basketball trivia game with two modes: in RARE, obscure correct answers score more than obvious ones and the ball sinks from the moon; in COMMON, famous answers score more and the ball climbs from the rim to the moon. It is inspired by the daily rare-answer trivia format (Krillion) but built entirely on NBA data.
 
 - **Daily Dive:** 7 prompts, 25 seconds each, the same set for every player each day.
 - **Your move:** type one answer per prompt, such as a player or a team. Autocomplete suggests names from the full player and team list, so it never reveals the valid answers.
-- **Scoring:** a valid answer earns points by how obscure it is. An invalid answer earns 0.
-- **Reveal:** after each prompt you see your tier, plus the most famous and the rarest valid answers.
-- **Share:** your total points plus 7 colored squares, one per prompt, colored by tier.
+- **Scoring:** a valid answer earns points by its fame tier and the mode (see Modes). An invalid, empty or late answer earns 0 in both modes.
+- **Reveal:** after each prompt the ball moves to the answer's level, and a card shows the level, the points and the most famous and the rarest valid answers.
+- **Share:** your mode, dive number and total points plus 7 colored squares, one per prompt, colored by tier.
 
 **What done means for the credit window:** a public URL live by November 3 with at least 63 prompts (9 days of dives), player and team prompt types, rarity scoring, daily rotation, share, streaks and an archive. No accounts and no backend: it is a static site.
 
@@ -43,7 +43,19 @@ Every valid answer gets a tier from a fame score computed once in the pipeline. 
 | 5 | 50 to 75% | 75 |
 | 6 | bottom 25% | 100 |
 
-A dive is worth at most 700 points. Wrong, invalid or timed-out answers score 0. The share line reads like `Deep Cut #12: 385` followed by seven colored squares.
+A dive is worth at most 700 points. Wrong, invalid or timed-out answers score 0. The share line reads like `NYLON RARE #12: 385` followed by seven colored squares and the address.
+
+## Modes
+
+Both modes use the same daily seven prompts and the same tiers; only the points differ. With the tier index 0 (most famous) to 5 (rarest) the pipeline already computes, `pointsFor(mode, tierIdx)` is `TIER_POINTS[tierIdx]` in **RARE** and `TIER_POINTS[5 - tierIdx]` in **COMMON** (the values are 10, 20, 35, 55, 75 and 100). A wrong, empty or timed-out answer is 0 in both.
+
+- The mode is chosen on the home screen (two cards), remembered as the last used, reflected in the URL hash (`#rare`, `#common`; the hash wins over the saved choice) and shown in the HUD. The results screen has "Play the other mode".
+- A day counts for the streak if either mode was completed. Finished dives (so best scores, the archive and the results) are stored per mode.
+- The old localStorage keys (`deepcut.*`) are read once and copied to `nylon:*` (the old history becomes the RARE history, which is how it was scored); they are never deleted.
+
+## The moon world (the interface)
+
+One full-screen pixel-art scene, procedurally drawn on a 360 x 215 grid (no image files), with a floating question card (a bottom sheet on a phone). Levels, top to bottom, with the ball's row on the grid, the altitude and the pick: MOON 24 (3,200 ft, FRANCHISE), ORBIT 60 (2,400, ALL-STAR), CLOUDS 94 (1,800, STARTER), ROOF 128 (1,100, ROTATION), RAFTERS 162 (500, BENCH), RIM 190 (60, DEEP CUT). The most famous answers are always on the moon. RARE starts the ball on the moon and sinks (MOON pays 10 ... RIM pays 100); COMMON starts at the rim and climbs (RIM pays 10 ... MOON pays 100). Reaching the end level (RIM in RARE, MOON in COMMON) plays a short celebration and the top-tier sound. A wrong answer leaves the ball where it is (it shakes) and the card says AIRBALL. The scene is decoration (`aria-hidden`); a polite live line says each result ("ORBIT, 75 points, 185 total"). docs/design.md has the details.
 
 ## Answer matching
 

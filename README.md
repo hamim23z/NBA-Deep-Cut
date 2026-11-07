@@ -1,23 +1,23 @@
-# Deep Cut
+# NYLON
 
-A daily basketball trivia game where the obvious answer loses, in pixel art. Every day there is a new **dive** of seven prompts, 25 seconds each, for example "Since 2001-02, name a player who played for both the Philadelphia 76ers and the Phoenix Suns". Name any valid answer: the more obscure it is, the more it scores. Share your total and seven colored squares.
+**NYLON** is a daily basketball shot. Every day there is a new **dive** of seven prompts, 25 seconds each, for example "Since 2001-02, name a player who played for both the Philadelphia 76ers and the Phoenix Suns". Name any valid answer and the ball moves: in **RARE** mode the ball starts on the moon and the rarer your answer, the deeper it sinks (and the more you score); in **COMMON** mode it starts at the rim and the more famous your answer, the higher it climbs. Share your total and seven coloured squares.
 
-It is a static website (Vite, React, TypeScript) with no backend, no accounts, no analytics and no cookies. The prompts come from an offline Python pipeline that turns real NBA box scores (2001-02 to 2025-26) into two JSON files.
+It is a static website (Vite, React, TypeScript) with no backend, no accounts, no analytics and no cookies. The prompts come from an offline Python pipeline that turns real NBA box scores (2001-02 to 2025-26) into two JSON files. (The game was called Deep Cut until session 7f; the repository and the address are unchanged.)
 
-![The home screen on desktop: the panel on the left, the court on the right](docs/screenshots/pixel/1280-1-home.png)
+![The home screen: the moon world behind, the two modes on the right](docs/screenshots/nylon/1440-rare-1-home.png)
 
-| Phone: home | Phone: a prompt | Phone: a deep cut reveal | Phone: results |
+| Phone: a prompt | Phone: an answer lands | Phone: the end level | Phone: results |
 | --- | --- | --- | --- |
-| ![](docs/screenshots/pixel/360-1-home.png) | ![](docs/screenshots/pixel/360-2-prompt.png) | ![](docs/screenshots/pixel/360-3-reveal-high.png) | ![](docs/screenshots/pixel/360-4-results.png) |
+| ![](docs/screenshots/nylon/390-rare-2-prompt.png) | ![](docs/screenshots/nylon/390-rare-4-after-answer.png) | ![](docs/screenshots/nylon/390-common-6-celebration.png) | ![](docs/screenshots/nylon/390-rare-7-results.png) |
 
-On a screen 900 px wide or more the game is a split screen: the questions on the left, a persistent pixel-art basketball court on the right (the jumbotron shows the prompt, points and dive; the shot clock counts the 25 seconds; every answer is a shot on that court). On a phone the court is a strip at the top. More screenshots at four widths, and a contact sheet of the seven shots, are in [docs/screenshots/pixel](docs/screenshots/pixel). [docs/design.md](docs/design.md) explains the design and [docs/pixel-art.md](docs/pixel-art.md) how the pictures are made (`python3 tools/pixel/gen_pixel.py`).
+The whole screen is one pixel-art **moon world**, drawn in code: a night sky with the moon (and a hoop on it), clouds, an arena roof with banners, a crowd and a hardwood floor with a hoop. The ball moves up and down a column through six levels (moon, orbit, clouds, roof, rafters, rim) and a card floats at the right with the question. On a phone the card is a sheet at the bottom. More screenshots at three sizes are in [docs/screenshots/nylon](docs/screenshots/nylon); [docs/design.md](docs/design.md) explains the design.
 
 ## How it plays
 
-- **A dive** is 7 prompts, 25 seconds each. Type a name (autocomplete suggests from the whole list of players and teams, so it never gives an answer away) and press Enter.
-- **Scoring** is by tier: 10, 20, 35, 55, 75 or 100 points for a valid answer, 0 for a wrong or late one. A dive is worth at most 700.
-- **The reveal** plays a short basketball shot on the court for your tier (an airball for 0, a clank for 10, a rim rattle, a bank shot, a swish, a deep swish, and a slam dunk for 100), taken from a spot on the floor that gets deeper as the points go up, then shows the most famous and the rarest valid answers. At the end the seven shots are replayed, with a rank label for your total.
-- **Streaks and the archive:** finish each day's dive to keep your streak; past dives are in the archive and do not count for the streak. Everything is kept in your browser (localStorage); there is no account.
+- **A dive** is 7 prompts, 25 seconds each, the same seven for everyone each day (the day changes at midnight in New York). Type a name (autocomplete suggests from the whole list of players and teams, so it never gives an answer away) and press Enter.
+- **Two modes**, chosen on the home screen, remembered, and shown in the address (`#rare`, `#common`). Every valid answer has a fame tier (1 = most famous, 6 = rarest) and the mode decides what it is worth: RARE pays 10, 20, 35, 55, 75, 100 for tiers 1 to 6; COMMON pays 100, 75, 55, 35, 20, 10. A wrong, empty or late answer is an airball: 0 points in both modes, and the ball stays where it is. A dive is worth at most 700.
+- **The result card** shows the level the ball landed on (and its pick: FRANCHISE, ALL-STAR, STARTER, ROTATION, BENCH, DEEP CUT), your answer, the points, the new altitude and a line about it. Enter or the button goes on. Reaching the end level (the moon in COMMON, the rim in RARE) sets off a small celebration.
+- **Streaks and the archive:** a day counts for your streak if you finish either mode. Finished dives, best scores and the archive are kept per mode, in your browser (localStorage); there is no account. What the game saved under its old name (Deep Cut) is copied to the new `nylon:*` keys the first time it runs, so nothing is lost.
 - A real player from before 2001-02 gets an "outside the data range" message, not a miss.
 
 ## Run it
@@ -41,7 +41,7 @@ Other commands, all in `web/`:
 | `npm run preview` | serve the production build locally |
 | `npm run sync-data` | copy `data/export/*.json` and the outside-range list into `web/public/` |
 
-Useful URLs while developing: `/?preview=1` shows a Play-test before launch, `/?preview=1&today=2026-11-10` pretends it is that day (with its own saved progress), and `/?animations=1` (development) or `/?preview=1&animations=1` (a build) shows every shot on the court, on a loop or one at a time.
+Useful URLs while developing: `/?preview=1` shows a Play-test before launch, `/?preview=1&today=2026-11-10` pretends it is that day (with its own saved progress), and `/?animations=1` (development) or `/?preview=1&animations=1` (a build) shows the ball moving to every level in either mode, on a loop or one at a time. Add `#common` to any address to open in COMMON mode.
 
 ## Regenerate the data
 
