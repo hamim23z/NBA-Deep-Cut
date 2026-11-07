@@ -221,7 +221,10 @@ describe('a prompt', () => {
     await user.keyboard('{Escape}');
     expect(input).toHaveAttribute('aria-expanded', 'false');
     await user.keyboard('{ArrowDown}{Enter}');
-    expect(await resultHeading()).toMatch(/points/); // picking a suggestion answers at once
+    expect(screen.queryByRole('heading', { level: 3, name: /points/ })).not.toBeInTheDocument();
+    expect(input).toHaveAttribute('aria-expanded', 'false');
+    await user.keyboard('{Enter}');
+    expect(await resultHeading()).toMatch(/points/);
   });
 
   it('asks which one when two people share the typed name, without using up the prompt', async () => {
@@ -232,6 +235,8 @@ describe('a prompt', () => {
     expect(screen.getAllByRole('option')).toHaveLength(2);
     expect(screen.queryByRole('heading', { level: 3, name: /points/ })).not.toBeInTheDocument(); // still answering
     await user.click(screen.getAllByRole('option')[0]!);
+    expect(screen.queryByRole('heading', { level: 3, name: /points/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Answer' }));
     expect(await resultHeading()).toMatch(/points/);
   });
 
