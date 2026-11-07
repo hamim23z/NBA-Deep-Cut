@@ -1,7 +1,3 @@
-/*
- * The moon world: a full-screen pixel scene (canvas layers, drawn once) with HTML on top for the ball, the gauge and the ruler.
- * Flat and hard-edged: no glow, no blur, no gradients. Only transform and opacity animate.
- */
 .world {
   position: fixed;
   inset: 0;
@@ -53,12 +49,10 @@
 @keyframes world-drift { from { transform: translateX(0); } to { transform: translateX(var(--loop)); } }
 @keyframes world-cross { from { transform: translateX(-60px); } to { transform: translateX(calc(100vw + 60px)); } }
 
-/* level lines and the guide */
 .world__lines { position: absolute; inset: 0; }
 .world__line { stroke: #f4ead6; stroke-opacity: 0.22; stroke-width: 2; stroke-dasharray: 8 8; }
 .world__guide { stroke: #f4ead6; stroke-opacity: 0.28; stroke-width: 2; stroke-dasharray: 2 8; }
 
-/* the depth gauge on the left */
 .world__gauge {
   position: absolute;
   left: 0;
@@ -79,16 +73,6 @@
   line-height: 1;
 }
 
-.world__chip {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  font-size: 12px;
-}
-
 .world__name { flex: 1; color: #f4ead6; font-size: 10px; }
 .world__pts { color: #ffb347; font-size: 9px; }
 
@@ -106,7 +90,6 @@
   line-height: 1.4;
 }
 
-/* the ruler on the right edge */
 .world__ruler { position: absolute; top: 0; bottom: 0; width: 70px; }
 .world__rule { position: absolute; right: 0; width: 0; border-right: 3px dotted #a8a8a8; }
 .world__tick { position: absolute; right: -4px; width: 12px; height: 2px; background: #a8a8a8; margin-top: -1px; }
@@ -124,7 +107,6 @@
 }
 .world__you b { color: #ff6a13; font-family: var(--font-display); font-size: 9px; font-weight: 400; }
 
-/* the ball */
 .world__ball {
   position: absolute;
   top: 0;
@@ -154,7 +136,6 @@
   80% { margin-left: 6px; }
 }
 
-/* the celebration at the end level */
 .world__fx { position: absolute; width: 0; height: 0; }
 .world__flash { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); background: #ff6a13; opacity: 0; animation: world-flash 0.5s steps(1, end) var(--delay) 1 both; }
 .world__ripple { position: absolute; left: 0; transform: translateX(-50%); border-left: 3px solid #f4ead6; border-right: 3px solid #f4ead6; opacity: 0; animation: world-ripple 0.6s steps(4, end) var(--delay) 1 both; }
@@ -170,15 +151,12 @@
   100% { opacity: 0; transform: translate(var(--dx), calc(var(--dy) + 30px)); }
 }
 
-/* a phone: only the ruler, no gauge; the ball column stays in view */
 .world.is-narrow .world__line { stroke-opacity: 0.16; }
 .world.is-narrow .world__ruler { width: 60px; }
 
-/* a skipped result jumps to its end */
 .world.is-skipped .world__ball,
 .world.is-skipped .world__you { transition-duration: 0ms !important; }
 
-/* reduced motion: instant moves, nothing ambient */
 .world.is-reduced .world__stars--0,
 .world.is-reduced .world__stars--1,
 .world.is-reduced .world__stars--2,

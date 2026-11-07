@@ -8,7 +8,6 @@ export function splitEra(text: string): { era: string; task: string } | null {
 
 export { capitalizeFirst };
 
-/** The sentence exactly as the player reads it: the prompt's words, with the task starting in a capital. */
 export function displayText(text: string): string {
   const parts = splitEra(text);
   return parts ? `${parts.era} ${capitalizeFirst(parts.task)}` : capitalizeFirst(text);

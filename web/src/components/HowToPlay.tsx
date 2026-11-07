@@ -1,4 +1,4 @@
-import { LEVELS, MODES, MODE_LABEL, pointsFor } from '../modes';
+import { MODES, MODE_LABEL, TIER_CLASS, pointsFor } from '../modes';
 import { PROMPTS_PER_DIVE, SECONDS_PER_PROMPT, TIERS, TIER_RANGES } from '../tiers';
 import { TIER_COLORS, TIER_INK } from '../world/palette';
 
@@ -17,16 +17,16 @@ export function HowToPlay({ onPlay, onBack }: Props) {
         </li>
         <li>Type one answer, a player or a team, or pick it from the suggestions. The suggestions list everyone, so they never give an answer away.</li>
         <li>
-          <strong>RARE:</strong> the rarer your answer, the more it scores, and the ball sinks from the moon to the rim. <strong>COMMON:</strong> the more famous your answer, the more it scores, and the ball climbs from the rim to the moon.
+          <strong>RARE:</strong> the rarer your answer, the more it scores, and the ball sinks from the moon toward the rim. <strong>COMMON:</strong> the more famous your answer, the more it scores, and the ball climbs from the rim toward the moon. Your running total sets the ball's height (700 points is the whole way).
         </li>
         <li>
-          A wrong answer, or running out of time, is an <strong>airball</strong>: 0 points, and the ball stays where it is.
+          A wrong answer, or running out of time, is an <strong>airball</strong>: 0 points, and the ball does not move.
         </li>
         <li>After each prompt you see where the ball landed, plus the most famous and the rarest valid answers.</li>
         <li>At the end, copy your score and seven coloured squares to share. A day counts for your streak if you finish either mode. Past dives are in the archive, and they do not count for the streak.</li>
       </ol>
       <table className="tiers">
-        <caption>Levels and points</caption>
+        <caption>Points by tier</caption>
         <thead>
           <tr>
             <th scope="col">Tier</th>
@@ -40,7 +40,7 @@ export function HowToPlay({ onPlay, onBack }: Props) {
           {TIERS.map((t) => (
             <tr key={t}>
               <th scope="row">
-                <span className="chip" style={{ background: TIER_COLORS[t], color: TIER_INK[t] }} aria-hidden="true">{t}</span> {LEVELS[t - 1]?.name}
+                <span className="chip" style={{ background: TIER_COLORS[t], color: TIER_INK[t] }} aria-hidden="true">{t}</span> {TIER_CLASS[t - 1]}
               </th>
               <td>{TIER_RANGES[t]}</td>
               {MODES.map((m) => (

@@ -55,7 +55,13 @@ Both modes use the same daily seven prompts and the same tiers; only the points 
 
 ## The moon world (the interface)
 
-One full-screen pixel-art scene, procedurally drawn on a 360 x 215 grid (no image files), with a floating question card (a bottom sheet on a phone). Levels, top to bottom, with the ball's row on the grid, the altitude and the pick: MOON 24 (3,200 ft, FRANCHISE), ORBIT 60 (2,400, ALL-STAR), CLOUDS 94 (1,800, STARTER), ROOF 128 (1,100, ROTATION), RAFTERS 162 (500, BENCH), RIM 190 (60, DEEP CUT). The most famous answers are always on the moon. RARE starts the ball on the moon and sinks (MOON pays 10 ... RIM pays 100); COMMON starts at the rim and climbs (RIM pays 10 ... MOON pays 100). Reaching the end level (RIM in RARE, MOON in COMMON) plays a short celebration and the top-tier sound. A wrong answer leaves the ball where it is (it shakes) and the card says AIRBALL. The scene is decoration (`aria-hidden`); a polite live line says each result ("ORBIT, 75 points, 185 total"). docs/design.md has the details.
+One full-screen pixel-art scene, procedurally drawn on a 360 x 215 grid (no image files), with a floating question card (a bottom sheet on a phone).
+
+The ball makes one journey through the dive, driven by the running total of points (0 to 700). `progress = total / 700`; with the moon at grid row 24 and the rim at row 190, `ballY(mode, total)` is `190 - progress * 166` in COMMON (the ball only climbs, from the rim) and `24 + progress * 166` in RARE (the ball only sinks, from the moon). A wrong, empty or timed-out answer is 0 points, so the ball does not move, and prompt N+1 starts exactly where prompt N ended.
+
+Zones are labels on the total, with thresholds 0, 100, 200, 300, 450 and 600 points: RIM, RAFTERS, ROOF, CLOUDS, ORBIT, MOON in COMMON and MOON, ORBIT, CLOUDS, ROOF, RAFTERS, RIM in RARE. The altitude readout is 10 ft a point: `total x 10` in COMMON, `7,000 - total x 10` in RARE. The depth gauge shows each zone with its threshold at `ballY(mode, threshold)`.
+
+Each answer's tier class names its result card: FRANCHISE, ALL-STAR, STARTER, ROTATION, BENCH, DEEP CUT (tier index 0 to 5). The ball travels for `500 + 700 x points / 100` ms (at most 1,200 ms) from the moment the answer is submitted. Reaching 700 points plays a celebration and the top-tier sound. The scene is decoration (`aria-hidden`); a polite live line says each result ("ALL-STAR pick, 75 points, 185 total"). docs/design.md has the details.
 
 ## Answer matching
 

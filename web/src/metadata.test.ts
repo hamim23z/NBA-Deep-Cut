@@ -62,7 +62,7 @@ describe('no tracking', () => {
     const config = readFileSync(resolve(web, 'src/config.ts'), 'utf8');
     for (const key of config.matchAll(/(?:KEY|Key) = (?:\([^)]*\): string => )?[`']([^`']+)[`']/g)) expect(key[1]).toMatch(/^nylon:/);
     expect(config).toMatch(/SOUND_KEY = 'nylon:sound'/);
-    expect(config).toMatch(/LEGACY_KEYS/); // the old names are read once and migrated, never written
+    expect(config).toMatch(/LEGACY_KEYS/);
   });
 
   it('has no dependency on a tracking or analytics package', () => {

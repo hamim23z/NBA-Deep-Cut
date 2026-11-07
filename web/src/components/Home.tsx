@@ -5,7 +5,6 @@ interface Props {
   number: number;
   mode: Mode;
   onMode: (mode: Mode) => void;
-  /** Today's dive is already finished in this mode. */
   played: boolean;
   streaks: Streaks;
   /** False when the browser will not keep anything, so streaks and the archive cannot last. */

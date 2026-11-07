@@ -1,26 +1,24 @@
 import { useEffect, useState, type Ref } from 'react';
 import { useAnnounce } from '../announcer';
 import { totalPoints } from '../dive2';
-import { LEVELS, MODE_LABEL, MODES, formatFeet, type Mode } from '../modes';
+import { MODE_LABEL, MODES, TIER_CLASS, altitudeFt, formatFeet, zoneName, type Mode } from '../modes';
 import { rankFor } from '../ranks';
 import { copyText, shareLine } from '../share';
 import { MAX_DIVE_POINTS, TIERS } from '../tiers';
 import type { Prompt, PromptResult, Tier } from '../types';
 import { TIER_COLORS, TIER_INK } from '../world/palette';
-import { ballLevel, marksFrom, useWorldStore } from '../world/worldStore';
+import { marksFrom, useWorldStore } from '../world/worldStore';
 
 interface Props {
   prompts: readonly Prompt[];
   results: readonly PromptResult[];
   diveNumber: number;
   mode: Mode;
-  /** The best total in this mode on this device, this dive included. */
   best: number;
   headingRef: Ref<HTMLHeadingElement>;
   onHome: () => void;
   onArchive: () => void;
   onHowTo: () => void;
-  /** Play (or look at) this dive in the other mode. */
   onOtherMode: (mode: Mode) => void;
   streak?: { value: number };
 }
@@ -40,13 +38,11 @@ export function Final({ prompts, results, diveNumber, mode, best, headingRef, on
   const [copyFailed, setCopyFailed] = useState(false);
   const total = totalPoints(results);
   const rank = rankFor(total);
-  const level = LEVELS[ballLevel(mode, marksFrom(results))] ?? LEVELS[0]!;
   const other: Mode = MODES.find((m) => m !== mode) ?? 'rare';
   const line = shareLine(diveNumber, results, mode);
   const counts = TIERS.map((t) => results.filter((r) => r.status === 'valid' && r.tier === t).length);
   const misses = results.filter((r) => r.tier === null).length;
 
-  // The world shows the ball on its final level.
   useEffect(() => {
     world.set({ phase: 'results', mode, marks: marksFrom(results), points: total, diveNumber, skipped: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per results screen
@@ -82,7 +78,7 @@ export function Final({ prompts, results, diveNumber, mode, best, headingRef, on
       </p>
       <p className="final__rank">{rank}</p>
       <dl className="stats">
-        <div><dt>Final altitude</dt><dd data-testid="final-altitude">{formatFeet(level.ft)} ft · {level.name}</dd></div>
+        <div><dt>Final altitude</dt><dd data-testid="final-altitude">{formatFeet(altitudeFt(mode, total))} ft · {zoneName(mode, total)}</dd></div>
         <div><dt>Best {MODE_LABEL[mode]} score</dt><dd data-testid="final-best">{best}{best === total ? ' · NEW BEST' : ''}</dd></div>
         {streak && <div><dt>Streak</dt><dd data-testid="final-streak">{days(streak.value)}</dd></div>}
       </dl>
@@ -92,9 +88,9 @@ export function Final({ prompts, results, diveNumber, mode, best, headingRef, on
         {TIERS.map((t, i) => (
           <li key={t}>
             <span className="chip" style={{ background: TIER_COLORS[t], color: TIER_INK[t] }} aria-hidden="true">{t}</span>
-            <span className="breakdown__name">{LEVELS[i]?.name}</span>
+            <span className="breakdown__name">{TIER_CLASS[i]}</span>
             <span className="breakdown__bar" aria-hidden="true">{Array.from({ length: counts[i] ?? 0 }, (_, k) => <i key={k} style={{ background: TIER_COLORS[t] }} />)}</span>
-            <span className="breakdown__count">{counts[i]}<span className="visually-hidden"> answers on {LEVELS[i]?.name}</span></span>
+            <span className="breakdown__count">{counts[i]}<span className="visually-hidden"> answers on {TIER_CLASS[i]}</span></span>
           </li>
         ))}
         <li>

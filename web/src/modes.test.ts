@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FLAVOR, LEVELS, MODES, applyMode, capitalizeFirst, endLevel, formatFeet, isMode, levelFor, pointsFor, startLevel } from './modes';
+import { FLAVOR, MODES, MOON_Y, RIM_Y, THRESHOLDS, TIER_CLASS, ZONE_NAMES, altitudeFt, applyMode, ballY, capitalizeFirst, feetFor, formatFeet, isMode, pointsFor, reachedEnd, travelMs, zoneIndex, zoneName } from './modes';
 import { TIER_POINTS } from './tiers';
 import type { PromptResult } from './types';
 
@@ -30,31 +30,70 @@ describe('pointsFor', () => {
   });
 });
 
-describe('the levels', () => {
-  it('are on the grid rows the scene uses, with the altitudes and the pick names', () => {
-    expect(LEVELS.map((l) => [l.name, l.y, l.ft, l.pick])).toEqual([
-      ['MOON', 24, 3200, 'FRANCHISE'], ['ORBIT', 60, 2400, 'ALL-STAR'], ['CLOUDS', 94, 1800, 'STARTER'], ['ROOF', 128, 1100, 'ROTATION'], ['RAFTERS', 162, 500, 'BENCH'], ['RIM', 190, 60, 'DEEP CUT'],
-    ]);
+describe('ballY', () => {
+  it.each([[0, 190], [100, 190 - (100 / 700) * 166], [350, 107], [700, 24]])('common mode, total %i', (total, y) => expect(ballY('common', total)).toBeCloseTo(y, 6));
+  it.each([[0, 24], [100, 24 + (100 / 700) * 166], [350, 107], [700, 190]])('rare mode, total %i', (total, y) => expect(ballY('rare', total)).toBeCloseTo(y, 6));
+  it('clamps to the track', () => {
+    expect(ballY('common', 900)).toBe(MOON_Y);
+    expect(ballY('rare', 900)).toBe(RIM_Y);
+    expect(ballY('common', -5)).toBe(RIM_Y);
+    expect(ballY('rare', -5)).toBe(MOON_Y);
   });
-  it('map a fame tier index to a level in both modes: the most famous is the moon, the rarest the rim', () => {
-    for (const mode of MODES) {
-      expect(levelFor(mode, 0).name).toBe('MOON');
-      expect(levelFor(mode, 5).name).toBe('RIM');
-      expect([0, 1, 2, 3, 4, 5].map((i) => levelFor(mode, i).y)).toEqual([24, 60, 94, 128, 162, 190]);
+  it('only ever moves up in common and down in rare as the total grows', () => {
+    for (let t = 0; t < 700; t += 5) {
+      expect(ballY('common', t + 5)).toBeLessThanOrEqual(ballY('common', t));
+      expect(ballY('rare', t + 5)).toBeGreaterThanOrEqual(ballY('rare', t));
     }
   });
-  it('pay what the brief says at each level: rare sinks 10 to 100, common climbs 10 (rim) to 100 (moon)', () => {
-    expect(LEVELS.map((_, i) => pointsFor('rare', i))).toEqual([10, 20, 35, 55, 75, 100]);
-    expect(LEVELS.map((_, i) => pointsFor('common', i))).toEqual([100, 75, 55, 35, 20, 10]);
+  it.each(MODES)('lands exactly at ballY(total) after a sequence like [100, 0, 55] and never moves backwards (%s)', (mode) => {
+    let total = 0;
+    let y = ballY(mode, total);
+    for (const points of [100, 0, 55]) {
+      total += points;
+      const next = ballY(mode, total);
+      if (points === 0) expect(next).toBe(y);
+      else expect(mode === 'common' ? next < y : next > y).toBe(true);
+      y = next;
+    }
+    expect(y).toBe(ballY(mode, 155));
   });
-  it('start on the moon (rare) or the rim (common) and end at the other', () => {
-    expect([startLevel('rare'), endLevel('rare')]).toEqual([0, 5]);
-    expect([startLevel('common'), endLevel('common')]).toEqual([5, 0]);
+});
+
+describe('zones and altitude', () => {
+  it('has the thresholds and the zone names in order for each mode', () => {
+    expect(THRESHOLDS).toEqual([0, 100, 200, 300, 450, 600]);
+    expect(ZONE_NAMES.common).toEqual(['RIM', 'RAFTERS', 'ROOF', 'CLOUDS', 'ORBIT', 'MOON']);
+    expect(ZONE_NAMES.rare).toEqual(['MOON', 'ORBIT', 'CLOUDS', 'ROOF', 'RAFTERS', 'RIM']);
   });
-  it('have a flavour line for every level in both modes', () => {
+  it.each([[0, 0], [99, 0], [100, 1], [299, 2], [300, 3], [449, 3], [450, 4], [599, 4], [600, 5], [700, 5]])('total %i is zone %i', (total, index) => {
+    expect(zoneIndex(total)).toBe(index);
+    expect(zoneName('common', total)).toBe(ZONE_NAMES.common[index]);
+    expect(zoneName('rare', total)).toBe(ZONE_NAMES.rare[index]);
+  });
+  it('reads altitude at 10 ft a point: up from 0 in common, down from 7,000 in rare', () => {
+    expect(altitudeFt('common', 0)).toBe(0);
+    expect(altitudeFt('common', 185)).toBe(1850);
+    expect(altitudeFt('common', 700)).toBe(7000);
+    expect(altitudeFt('rare', 0)).toBe(7000);
+    expect(altitudeFt('rare', 185)).toBe(5150);
+    expect(altitudeFt('rare', 700)).toBe(0);
+    expect(feetFor(75)).toBe(750);
+  });
+  it('is at the end of the track at 700', () => {
+    expect(reachedEnd(699)).toBe(false);
+    expect(reachedEnd(700)).toBe(true);
+  });
+  it('travels longer for more points, up to 1,200 ms, and not at all for none', () => {
+    expect(travelMs(0)).toBe(0);
+    expect(travelMs(10)).toBe(570);
+    expect(travelMs(100)).toBe(1200);
+    expect(travelMs(500)).toBe(1200);
+  });
+  it('names the tier classes and has a flavour line for every tier in both modes', () => {
+    expect(TIER_CLASS).toEqual(['FRANCHISE', 'ALL-STAR', 'STARTER', 'ROTATION', 'BENCH', 'DEEP CUT']);
     for (const mode of MODES) expect(FLAVOR[mode]).toHaveLength(6);
-    expect(FLAVOR.common[5]).toBe('Rim-out. Too obscure for this mode.');
-    expect(FLAVOR.rare[5]).toBe('Swish. Almost nobody said this.');
+    expect(FLAVOR.common[0]).toBe('Everybody knows this name. Big climb.');
+    expect(FLAVOR.rare[5]).toBe('Almost nobody said this. Huge sink.');
   });
   it('formats the altitude with a thousands separator', () => expect(formatFeet(3200)).toBe('3,200'));
 });

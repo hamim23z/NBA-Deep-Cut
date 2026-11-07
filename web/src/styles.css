@@ -22,7 +22,6 @@
   --focus: var(--amber);
   --danger: var(--red);
 
-  /* one colour per tier, from the most famous answer (1) to the rarest (6). The number always comes with it. */
   --t1: #6e6e6e;
   --t2: #a8a8a8;
   --t3: #ededed;
@@ -105,7 +104,6 @@ a { color: var(--amber); }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 ::selection { background: var(--orange); color: var(--ink); }
 
-/* ---------- the bar across the top ---------- */
 .hud {
   position: fixed;
   z-index: 30;
@@ -218,7 +216,6 @@ a { color: var(--amber); }
 .sound-toggle:hover { border-color: var(--orange); }
 .sound-toggle[aria-pressed='true'] { border-color: var(--amber); color: var(--amber); }
 
-/* a speaker drawn in 2px squares */
 .sound-toggle__icon {
   display: inline-block;
   width: 2px;
@@ -232,7 +229,6 @@ a { color: var(--amber); }
   box-shadow: 0 2px 0 currentColor, 0 4px 0 currentColor, 0 6px 0 currentColor, 2px 2px 0 currentColor, 2px 4px 0 currentColor, 4px 0 0 currentColor, 4px 2px 0 currentColor, 4px 4px 0 currentColor, 4px 6px 0 currentColor, 6px -2px 0 currentColor, 6px 0 0 currentColor, 6px 2px 0 currentColor, 6px 4px 0 currentColor, 6px 6px 0 currentColor, 6px 8px 0 currentColor, 10px 0 0 currentColor, 10px 6px 0 currentColor, 12px 2px 0 currentColor, 12px 4px 0 currentColor;
 }
 
-/* ---------- the stage: a floating card at the right, clear of the ball column ---------- */
 .stage {
   position: fixed;
   z-index: 20;
@@ -331,7 +327,6 @@ button { font-size: 0.8rem; line-height: 1.4; }
   .actions { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
 }
 
-/* ---------- home ---------- */
 .home {
   padding: 22px 26px 22px;
   background: var(--box);
@@ -399,7 +394,6 @@ button { font-size: 0.8rem; line-height: 1.4; }
 .streaks dt { color: var(--muted); font-family: var(--font-display); font-size: 8px; text-transform: uppercase; }
 .streaks dd { margin: 8px 0 0; color: var(--amber); font-size: 1.6rem; }
 
-/* ---------- the question card ---------- */
 .shotclock { display: flex; align-items: center; gap: 16px; margin: 0 0 14px; }
 .shotclock__digits { margin: 0; min-width: 3.2rem; color: var(--amber); font-size: 1.5rem; line-height: 1; }
 .shotclock--danger .shotclock__digits { color: var(--danger); animation: flicker 500ms step-end infinite; }
@@ -436,10 +430,9 @@ button { font-size: 0.8rem; line-height: 1.4; }
 @keyframes shake-0 { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 50% { transform: translateX(8px); } 75% { transform: translateX(-4px); } }
 @keyframes shake-1 { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 50% { transform: translateX(8px); } 75% { transform: translateX(-4px); } }
 
-/* ---------- the result card: the border and the level are in the tier's colour ---------- */
 .result-card { border-color: var(--tier, var(--orange)); }
-.result-card__pick { margin: 0; color: var(--muted); font-family: var(--font-display); font-size: 10px; }
-.result-card__level { margin: 8px 0 10px; color: var(--tier-text, var(--cream)); font-size: clamp(28px, 3.4vw, 44px); line-height: 1.1; }
+.result-card__pick { margin: 0 0 10px; color: var(--muted); font-family: var(--font-display); font-size: 10px; }
+.result-card__level { margin: 0 0 6px; color: var(--tier-text, var(--cream)); font-size: clamp(28px, 3.4vw, 44px); line-height: 1.1; }
 
 .result-card__answer {
   display: block;
@@ -479,7 +472,6 @@ button { font-size: 0.8rem; line-height: 1.4; }
 .chip--t5 { background: var(--t5); color: var(--ink); }
 .chip--t6 { background: var(--t6); color: var(--ink); }
 
-/* ---------- the results ---------- */
 .final__number { margin: 0 0 10px; color: var(--amber); font-family: var(--font-display); font-size: 10px; }
 .squares { display: flex; gap: 8px; margin: 10px 0; padding: 0; list-style: none; }
 .square { display: flex; flex: 1; align-items: center; justify-content: center; max-width: 3.4rem; aspect-ratio: 1; background: var(--line); border: 3px solid var(--ink); }
@@ -527,7 +519,6 @@ button { font-size: 0.8rem; line-height: 1.4; }
 .archive__item .primary,
 .archive__item .secondary { min-height: 2.4rem; padding: 0.4rem 0.8rem; font-size: 0.6rem; }
 
-/* ---------- how to play, coming soon, errors, loading ---------- */
 .steps { margin: 0.6rem 0; padding-left: 1.6rem; font-size: 1.5rem; }
 .steps li { margin: 0.5rem 0; }
 .steps strong { color: var(--amber); font-weight: 400; }
@@ -562,7 +553,6 @@ button { font-size: 0.8rem; line-height: 1.4; }
 .animations__buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: 10px; margin-top: 1rem; }
 .title { margin: 0.25rem 0; font-size: 0.9rem; color: var(--cream); }
 
-/* ---------- a phone: the question is a sheet at the bottom, the HUD shrinks ---------- */
 .app--narrow .hud { padding: 8px 8px 0; flex-wrap: wrap; height: 96px; align-content: flex-start; }
 .app--narrow .hud__left,
 .app--narrow .hud__right { gap: 6px; }
@@ -620,7 +610,6 @@ button { font-size: 0.8rem; line-height: 1.4; }
 .app--narrow .archive__list { max-height: none; }
 .app--narrow .howto { max-height: none; }
 
-/* ---------- reduced motion: nothing moves ---------- */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -635,7 +624,6 @@ button { font-size: 0.8rem; line-height: 1.4; }
   .shotclock--danger .shotclock__digits { animation: none !important; }
 }
 
-/* a short screen (a laptop window): the home card and the results are tightened so they fit under the HUD */
 @media (min-width: 700px) and (max-height: 800px) {
   .stage { top: 78px; bottom: 44px; }
   .home { padding: 14px 22px 14px; }

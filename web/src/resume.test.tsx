@@ -1,4 +1,5 @@
 import { displayText } from './components/PromptText';
+import { ballY } from './modes';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -74,6 +75,9 @@ describe('reloading in the middle of a dive', () => {
     expect(promptText()).toBe(displayText(dive()[3]!.text));
     expect(await screen.findByText(/Prompt 4 of 7/)).toBeInTheDocument();
     expect(screen.getByTestId('scoreboard-points')).toHaveTextContent(String(first.points));
+    const world = await screen.findByTestId('world');
+    expect(world).toHaveAttribute('data-total', String(first.points));
+    expect(Number(world.getAttribute('data-ball-y'))).toBeCloseTo(ballY('rare', first.points), 1);
     expect(screen.getByRole('group', { name: 'Prompt 4 of 7' })).toBeInTheDocument();
   });
 
@@ -209,7 +213,7 @@ describe('stale or damaged saved progress', () => {
     vi.setSystemTime(new Date(DAY2));
     const user = setup();
     open(store);
-    expect(await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ })).toBeInTheDocument(); // home, not a resumed dive
+    expect(await screen.findByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ })).toBeInTheDocument();
     expect(screen.getByText('#2')).toBeInTheDocument();
     expect(store.data.get(PROGRESS_KEY)).toBe('');
     await user.click(screen.getByRole('button', { name: /^PLAY (RARE|COMMON) SHOT$/ }));
@@ -271,7 +275,7 @@ describe('the progress storage', () => {
   it('round-trips and clears', () => {
     const store = memory();
     expect(saveProgress(store, 'k', ok)).toBe(true);
-    expect(loadProgress(store, 'k')).toEqual({ ...ok, gameMode: 'rare' }); // a dive saved by the old game was played the rare way
+    expect(loadProgress(store, 'k')).toEqual({ ...ok, gameMode: 'rare' });
     saveProgress(store, 'k', null);
     expect(loadProgress(store, 'k')).toBeNull();
   });

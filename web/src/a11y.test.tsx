@@ -31,7 +31,8 @@ describe('tiers are never told by color alone', () => {
   it('names the tier in words on the reveal (the level, its pick and "Tier N: P points")', () => {
     render(<Reveal prompt={prompts[0]!} mode="rare" result={res(0, 4)} isLast={false} headingRef={null} onNext={() => undefined} skipped onSkip={() => undefined} />);
     expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Tier 4: 55 points');
-    expect(screen.getByText('ROTATION PICK')).toBeInTheDocument(); // the level and its pick, in words
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('ROTATION');
+    expect(screen.getByText('PICK')).toBeInTheDocument();
   });
 });
 

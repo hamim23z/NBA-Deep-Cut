@@ -28,7 +28,6 @@ export function computeStreaks(history: History, today: number): Streaks {
   return { current, best };
 }
 
-/** The dives finished on their own day in either mode: a day counts for the streak if either mode was completed. */
 export function mergeDaily(...histories: History[]): History {
   const out: History = {};
   for (const h of histories) {
@@ -41,7 +40,6 @@ export function mergeDaily(...histories: History[]): History {
   return out;
 }
 
-/** The best total among the finished dives (0 when there are none). */
 export function bestScore(history: History, sum: (results: History[number]['results']) => number): number {
   return Object.values(history).reduce((best, played) => Math.max(best, sum(played.results)), 0);
 }

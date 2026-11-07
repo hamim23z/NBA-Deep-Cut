@@ -26,7 +26,7 @@ describe('the era in a prompt', () => {
     expect(splitEra('No era here')).toBeNull();
     const text = 'Since 2001-02 (through 2025-26), name a player who scored 50 or more points in a regular-season game.';
     const { container } = render(<h2><PromptText text={text} /></h2>);
-    expect(container.textContent).toBe(displayText(text)); // the words are the prompt's; only the first letter of the task is capitalised
+    expect(container.textContent).toBe(displayText(text));
     expect(container.textContent?.toLowerCase()).toBe(text.toLowerCase());
   });
 

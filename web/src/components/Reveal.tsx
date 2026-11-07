@@ -1,5 +1,6 @@
 import { useEffect, useState, type CSSProperties, type Ref } from 'react';
-import { FLAVOR, LEVELS, MODE_VERB, formatFeet, type Mode } from '../modes';
+import { FLAVOR, MODE_VERB, TIER_CLASS, feetFor, formatFeet, travelMs, type Mode } from '../modes';
+import { RollingNumber } from './RollingNumber';
 import { useReducedMotion } from '../motion';
 import { shotForResult } from '../shots';
 import { useSound } from '../sound';
@@ -16,12 +17,10 @@ interface Props {
   isLast: boolean;
   headingRef: Ref<HTMLHeadingElement>;
   onNext: () => void;
-  /** The player tapped to skip the ball's move. */
   skipped: boolean;
   onSkip: () => void;
 }
 
-/** How long after a screen appears Enter starts to count: the Enter that submitted the answer is still bubbling when it mounts. */
 export const ARM_MS = 120;
 
 /** The three most famous valid answers: lowest tier first, then the order of the file. */
@@ -116,19 +115,16 @@ export function Reveal({ prompt, result, mode, isLast, headingRef, onNext, skipp
   const { play } = useSound();
   const world = useWorldStore();
   const tier = result.status === 'valid' ? result.tier : null;
-  const level = tier ? LEVELS[tier - 1] : undefined;
+  const tierClass = tier ? TIER_CLASS[tier - 1] : undefined;
   const color = tier ? TIER_COLORS[tier as Tier] : '#6E6E6E';
   const verb = MODE_VERB[mode];
 
-  // The world moves the ball for this result, and the sound plays. The live line next to the world says the same in words.
   useEffect(() => {
     world.set({ phase: 'result', shotKey: world.get().shotKey + 1, skipped: false });
     if (!reduced) play(shot.name);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per result
   }, [result.promptId]);
 
-  // Enter goes on to the next prompt. It is armed a moment after the result appears: in a browser, the Enter that submitted the
-  // answer is still bubbling when this screen mounts, and it must not count as "next".
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Enter' && !e.repeat) {
@@ -149,15 +145,15 @@ export function Reveal({ prompt, result, mode, isLast, headingRef, onNext, skipp
   return (
     <section className={classes} style={style} aria-labelledby="result-heading" onPointerDown={skipped ? undefined : onSkip} data-tier={tier ?? 'miss'}>
       <h2 className="visually-hidden">{displayText(prompt.text)}</h2>
-      <p className="result-card__pick">{level ? `${level.pick} PICK` : 'NO POINTS'}</p>
       <h3 id="result-heading" className={`result-card__level${result.status === 'outside_range' ? ' shake shake--0' : ''}`} tabIndex={-1} ref={headingRef}>
-        {level ? level.name : 'AIRBALL'}
+        {tierClass ?? 'AIRBALL'}
         <span className="visually-hidden">: {headline(result)}</span>
       </h3>
+      {tierClass && <p className="result-card__pick">PICK</p>}
       <input className="result-card__answer" readOnly aria-label="Your answer" value={typed.trim() === '' ? 'No answer' : `"${typed}"`} ref={(node) => node?.focus({ preventScroll: true })} />
       <p className="result-card__points">
-        <strong>+{result.points} PTS</strong>
-        {level && <> · {verb.move} to {formatFeet(level.ft)} ft</>}
+        <strong>+<RollingNumber value={result.points} from={0} durationMs={travelMs(result.points)} instant={reduced || skipped || result.points === 0} /> PTS</strong>
+        {result.points > 0 && <> · {verb.move} {formatFeet(feetFor(result.points))} ft</>}
       </p>
       {tier ? <p className="result-card__flavor">{FLAVOR[mode][tier - 1]}</p> : <p className="result-card__flavor">{explanation(prompt, result)}</p>}
       <button type="button" className="primary result-card__next" onClick={onNext}>

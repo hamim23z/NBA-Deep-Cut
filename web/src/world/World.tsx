@@ -1,16 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement } from 'react';
-import { LEVELS, MODE_CHIP, pointsFor } from '../modes';
+import { MODE_CHIP, THRESHOLDS, TIER_CLASS, ZONE_NAMES, ballY, reachedEnd, travelMs } from '../modes';
 import { useMetrics } from './useMetrics';
 import { useReducedMotion } from '../motion';
-import { ballLevel, previousLevel, reachedEnd, useWorldState } from './worldStore';
-import { BALL_X, GRID, MOON, RIM_Y, renderClouds, renderCrowdShimmer, renderScene, renderStars, toScreen, type Layer } from './scene';
-import { TIER_COLORS, TIER_INK, moveMs, tierOfLevel } from './palette';
+import { useWorldState } from './worldStore';
+import { BALL_X, GRID, MOON, RIM_Y as ARENA_RIM_Y, renderClouds, renderCrowdShimmer, renderScene, renderStars, toScreen, type Layer } from './scene';
+import { TIER_COLORS } from './palette';
 import './world.css';
 
 const BALL_CELLS = 9;
-/** The two curved seams of the ball, left and right. */
 const ARCS = new Set(['2,2', '1,3', '1,5', '2,6', '6,2', '7,3', '7,5', '6,6']);
-/** The ball as 9 x 9 cells: orange with a dark outline and seams. */
 export function ballPixels(color = '#FF6A13', ink = '#1A0902'): Array<{ x: number; y: number; fill: string }> {
   const out: Array<{ x: number; y: number; fill: string }> = [];
   for (let y = 0; y < BALL_CELLS; y++) {
@@ -34,7 +32,6 @@ export function PixelBall({ size, color, className }: { size: number; color?: st
   );
 }
 
-/** A canvas that shows a layer once. Nothing happens where there is no canvas (tests). */
 function LayerCanvas({ layer, className, scale }: { layer: Layer; className: string; scale: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -47,7 +44,6 @@ function LayerCanvas({ layer, className, scale }: { layer: Layer; className: str
   return <canvas ref={ref} className={className} width={layer.w} height={layer.h} style={{ width: layer.w * scale, height: layer.h * scale }} />;
 }
 
-/** The pixel-art moon world, full screen, behind everything. Decoration only: the screens in front carry every word and number. */
 export default function World() {
   const state = useWorldState();
   const reduced = useReducedMotion();
@@ -57,40 +53,42 @@ export default function World() {
   const stars = useMemo(() => [renderStars(3), renderStars(11), renderStars(19)], []);
   const crowd = useMemo(() => [renderCrowdShimmer(5), renderCrowdShimmer(9)], []);
 
-  const level = ballLevel(state.mode, state.marks);
-  const before = previousLevel(state.mode, state.marks);
+  const total = state.points;
   const last = state.marks[state.marks.length - 1];
   const justAnswered = state.phase === 'result' && last !== undefined;
-  const moved = justAnswered && last?.tier !== null && level !== before;
-  const missed = justAnswered && last?.tier === null;
-  const celebrate = justAnswered && reachedEnd(state.mode, state.marks) && !reduced;
-  const ms = reduced || state.skipped ? 0 : moveMs(before, level);
-  const rising = level < before;
+  const earned = justAnswered ? last.points : 0;
+  const missed = justAnswered && earned === 0;
+  const celebrate = justAnswered && earned > 0 && reachedEnd(total) && !reduced;
+  const ms = reduced || state.skipped ? 0 : travelMs(earned);
+  const before = total - earned;
+  const rising = ballY(state.mode, total) < ballY(state.mode, before);
   const [moving, setMoving] = useState(false);
   useEffect(() => {
-    if (!moved || ms === 0) return;
+    if (earned === 0 || ms === 0) return;
     setMoving(true);
     const id = setTimeout(() => setMoving(false), ms);
     return () => clearTimeout(id);
-  }, [moved, ms, state.shotKey]);
+  }, [earned, ms, state.shotKey]);
 
   const size = Math.max(BALL_CELLS * m.scale, m.narrow ? 30 : 0);
-  const ball = toScreen(m, BALL_X, LEVELS[level]?.y ?? 24);
-  const lineY = (i: number): number => toScreen(m, 0, LEVELS[i]?.y ?? 0).y;
+  const screenY = (points: number): number => toScreen(m, 0, ballY(state.mode, points)).y;
+  const ball = toScreen(m, BALL_X, ballY(state.mode, total));
   const cls = ['world', reduced ? 'is-reduced' : '', state.skipped ? 'is-skipped' : '', m.narrow ? 'is-narrow' : ''].filter(Boolean).join(' ');
   const sceneStyle: CSSProperties = { left: m.ox, top: m.oy, width: GRID.w * m.scale, height: GRID.h * m.scale };
-  const cellVars = { '--cell': `${m.scale}px` } as CSSProperties;
 
-  const hoop = level === 0 ? { x: MOON.x, y: MOON.y + MOON.r + 2 } : { x: BALL_X, y: RIM_Y + 4 };
+  const hoop = state.mode === 'common' ? { x: MOON.x, y: MOON.y + MOON.r + 2 } : { x: BALL_X, y: ARENA_RIM_Y + 4 };
   const hoopAt = toScreen(m, hoop.x, hoop.y);
 
   const live = justAnswered && last
-    ? last.tier === null ? `AIRBALL, 0 points, ${state.points} total` : `${LEVELS[last.tier - 1]?.name ?? ''}, ${pointsFor(state.mode, last.tier - 1)} points, ${state.points} total`
+    ? last.tier === null ? `AIRBALL, 0 points, ${total} total` : `${TIER_CLASS[last.tier - 1]} pick, ${last.points} points, ${total} total`
     : '';
 
-  // ghost balls on the ruler for earlier answers (not the one on screen now)
-  const ghosts = state.marks.flatMap((mark, i) => (mark.tier ? [{ i, tier: mark.tier }] : []));
-  const seen = new Map<number, number>();
+  let running = 0;
+  const path = state.marks.flatMap((mark) => {
+    running += mark.points;
+    return mark.tier ? [{ tier: mark.tier, at: running }] : [];
+  });
+  const stacked = new Map<number, number>();
   const rulerX = m.narrow ? 22 : 26;
 
   const confetti: ReactElement[] = celebrate
@@ -101,9 +99,12 @@ export default function World() {
       })
     : [];
 
+  const zoneTop = screenY(THRESHOLDS[state.mode === 'common' ? 5 : 0] as number) - 30;
+  const zoneBottom = screenY(THRESHOLDS[state.mode === 'common' ? 0 : 5] as number) + 30;
+
   return (
     <>
-      <div className={cls} aria-hidden="true" data-testid="world" data-phase={state.phase} data-mode={state.mode} data-level={LEVELS[level]?.name} data-scale={m.scale.toFixed(2)} style={cellVars}>
+      <div className={cls} aria-hidden="true" data-testid="world" data-phase={state.phase} data-mode={state.mode} data-total={total} data-ball-y={ballY(state.mode, total).toFixed(2)} data-scale={m.scale.toFixed(2)} style={{ '--cell': `${m.scale}px` } as CSSProperties}>
         <div className="world__scene" style={sceneStyle}>
           <LayerCanvas layer={scene} className="world__layer world__base" scale={m.scale} />
           {stars.map((s, i) => <LayerCanvas key={i} layer={s} className={`world__layer world__stars world__stars--${i}`} scale={m.scale} />)}
@@ -116,17 +117,16 @@ export default function World() {
         <i className="world__sat world__sat--b" style={{ top: toScreen(m, 0, 76).y, width: 3 * m.scale, height: 2 * m.scale }} />
 
         <svg className="world__lines" width="100%" height="100%" shapeRendering="crispEdges">
-          {LEVELS.map((l, i) => <line key={l.name} className="world__line" x1="0" x2="100%" y1={lineY(i)} y2={lineY(i)} />)}
+          {THRESHOLDS.map((t) => <line key={t} className="world__line" x1="0" x2="100%" y1={screenY(t)} y2={screenY(t)} />)}
           <line className="world__guide" x1={toScreen(m, BALL_X, 0).x} x2={toScreen(m, BALL_X, 0).x} y1={m.oy} y2={toScreen(m, 0, 203).y} />
         </svg>
 
         {!m.narrow && (
-          <div className="world__gauge" style={{ top: lineY(0) - 30, height: lineY(5) - lineY(0) + 60 }}>
-            {LEVELS.map((l, i) => (
-              <div key={l.name} className="world__row" style={{ top: lineY(i) - (lineY(0) - 30) - 15 }} data-level={l.name}>
-                <span className="world__chip" style={{ background: TIER_COLORS[tierOfLevel(i)], color: TIER_INK[tierOfLevel(i)] }}>{i + 1}</span>
-                <span className="world__name">{l.name}</span>
-                <span className="world__pts">{pointsFor(state.mode, i)} PTS</span>
+          <div className="world__gauge" style={{ top: zoneTop, height: zoneBottom - zoneTop }}>
+            {THRESHOLDS.map((t, i) => (
+              <div key={t} className="world__row" style={{ top: screenY(t) - zoneTop - 15 }} data-zone={ZONE_NAMES[state.mode][i]}>
+                <span className="world__name">{ZONE_NAMES[state.mode][i]}</span>
+                <span className="world__pts">{t}+ PTS</span>
               </div>
             ))}
           </div>
@@ -134,19 +134,19 @@ export default function World() {
         {!m.narrow && <p className="world__mode">{MODE_CHIP[state.mode]}</p>}
 
         <div className="world__ruler" style={{ right: rulerX }}>
-          <i className="world__rule" style={{ top: lineY(0) - 10, height: lineY(5) - lineY(0) + 20 }} />
-          {LEVELS.map((l, i) => <i key={l.name} className="world__tick" style={{ top: lineY(i) }} />)}
-          {ghosts.map(({ i, tier }) => {
-            const slot = seen.get(tier) ?? 0;
-            seen.set(tier, slot + 1);
+          <i className="world__rule" style={{ top: Math.min(screenY(0), screenY(700)) - 10, height: Math.abs(screenY(700) - screenY(0)) + 20 }} />
+          {THRESHOLDS.map((t) => <i key={t} className="world__tick" style={{ top: screenY(t) }} />)}
+          {path.map(({ tier, at }, i) => {
+            const slot = stacked.get(at) ?? 0;
+            stacked.set(at, slot + 1);
             return (
-              <span key={i} className="world__ghost" style={{ top: lineY(tier - 1) + slot * 16 }}>
+              <span key={i} className="world__ghost" style={{ top: screenY(at) + slot * 16 }}>
                 <PixelBall size={14} color={TIER_COLORS[tier]} />
                 <b style={{ color: tier === 1 ? '#A8A8A8' : TIER_COLORS[tier] }}>{tier}</b>
               </span>
             );
           })}
-          <span className="world__you" style={{ transform: `translateY(${lineY(level)}px)`, transitionDuration: `${ms}ms` }}>
+          <span className="world__you" style={{ transform: `translateY(${screenY(total)}px)`, transitionDuration: `${ms}ms` }}>
             <svg width="14" height="14" viewBox="0 0 7 7" shapeRendering="crispEdges"><path d="M7 0V7L0 3.5Z" fill="#FF6A13" /></svg>
             <b>YOU</b>
           </span>

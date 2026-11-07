@@ -1,17 +1,13 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { LEVELS, MODES, MODE_LABEL, pointsFor, startLevel, type Mode } from './modes';
+import { lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { MODES, MODE_LABEL, TIER_CLASS, altitudeFt, formatFeet, pointsFor, zoneName, type Mode } from './modes';
 import { ReducedMotionOverride } from './motion';
 import type { Tier } from './types';
 import { WorldProvider, createWorldStore, INITIAL_WORLD } from './world/worldStore';
 
 const World = lazy(() => import('./world/World'));
-const OUTCOMES: Array<{ name: string; tier: Tier | null }> = [{ name: 'airball', tier: null }, ...LEVELS.map((l, i) => ({ name: l.name.toLowerCase(), tier: (i + 1) as Tier }))];
+const OUTCOMES: Array<{ name: string; tier: Tier | null }> = [{ name: 'airball', tier: null }, ...TIER_CLASS.map((c, i) => ({ name: c.toLowerCase(), tier: (i + 1) as Tier }))];
 const LOOP_MS = 2800;
 
-/**
- * A review page (?animations=1 in development, ?preview=1&animations=1 in a build): the ball moving to every level in either mode,
- * one after another on a loop, with buttons to play one, a mode switch and a switch for the reduced-motion version.
- */
 export default function AnimationsPage() {
   const store = useMemo(() => createWorldStore({ ...INITIAL_WORLD, phase: 'prompt', promptNumber: 1, diveNumber: 12 }), []);
   const [mode, setMode] = useState<Mode>('rare');
@@ -24,14 +20,14 @@ export default function AnimationsPage() {
     const before = store.get();
     const marks = before.marks.length >= 7 || before.mode !== m ? [] : before.marks;
     const gained = outcome.tier === null ? 0 : pointsFor(m, outcome.tier - 1);
+    const total = Math.min(700, (marks.length === 0 ? 0 : before.points) + gained);
     setCurrent(name);
-    store.set({ mode: m, phase: 'result', marks: [...marks, { id: `demo-${before.shotKey + 1}`, tier: outcome.tier }], points: (marks.length === 0 ? 0 : before.points) + gained, shotKey: before.shotKey + 1, skipped: false, promptNumber: marks.length + 1 });
+    store.set({ mode: m, phase: 'result', marks: [...marks, { id: `demo-${before.shotKey + 1}`, tier: outcome.tier, points: total - (marks.length === 0 ? 0 : before.points) }], points: total, shotKey: before.shotKey + 1, skipped: false, promptNumber: marks.length + 1 });
   };
 
   useEffect(() => {
-    store.set({ mode });
-    play('airball', mode);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- when the mode changes
+    store.set({ mode, marks: [], points: 0, phase: 'prompt' });
+    setCurrent('start');
   }, [mode]);
 
   useEffect(() => {
@@ -44,9 +40,9 @@ export default function AnimationsPage() {
       });
     }, LOOP_MS);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- play only uses the store
   }, [auto, store, mode]);
 
+  const total = useSyncExternalStore(store.subscribe, () => store.get().points);
   return (
     <div className="animations">
       <WorldProvider store={store}>
@@ -59,10 +55,10 @@ export default function AnimationsPage() {
       <main className="animations__panel card">
         <h1 className="title">Ball moves on the moon world</h1>
         <p className="animations__now" data-testid="animation-now">
-          Now: <strong>{MODE_LABEL[mode]} · {current}</strong> (start: {LEVELS[startLevel(mode)]?.name})
+          Now: <strong>{MODE_LABEL[mode]} · {current}</strong> ({formatFeet(altitudeFt(mode, total))} ft, {zoneName(mode, total)})
         </p>
         <label className="animations__toggle">
-          <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> Loop through every level
+          <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> Loop through every tier
         </label>
         <label className="animations__toggle">
           <input type="checkbox" checked={reduced} onChange={(e) => setReduced(e.target.checked)} /> Show the reduced-motion version

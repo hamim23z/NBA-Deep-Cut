@@ -17,8 +17,8 @@ describe('the question text', () => {
     const { container } = render(<PromptText text={text} />);
     expect(container.textContent).toBe('Since 2001-02 (through 2025-26), Name a player who scored 40 or more points.');
     expect(container.textContent?.toLowerCase()).toBe(text.toLowerCase());
-    expect(text).toContain('), name a player'); // the string itself is untouched
-    expect(splitEra(text)?.task).toBe('name a player who scored 40 or more points.'); // and so is what the matcher and the data see
+    expect(text).toContain('), name a player');
+    expect(splitEra(text)?.task).toBe('name a player who scored 40 or more points.');
   });
 
   it('capitalises a text that has no era, and a text that already has a capital stays as it is', () => {
@@ -49,7 +49,7 @@ describe('the question text', () => {
       const shown = screen.getByRole('heading', { level: 2 }).textContent ?? '';
       expect(shown).toBe(displayText(raw));
       expect(shown).not.toBe(raw);
-      expect(divePrompts(mockPrompts(), 1)[0]!.text).toBe(raw); // reading the data again gives the same words
+      expect(divePrompts(mockPrompts(), 1)[0]!.text).toBe(raw);
     });
   });
 });
@@ -72,7 +72,7 @@ describe('contrast (WCAG: 4.5 to 1 for text)', () => {
 
   it('puts readable text on every tier colour, and the lightest grey text on the near-black boxes', () => {
     for (const t of [1, 2, 3, 4, 5, 6] as const) expect(ratio(TIER_INK[t], TIER_COLORS[t]), `tier ${t}`).toBeGreaterThanOrEqual(4.5);
-    expect(ratio('#A8A8A8', '#0A0A0A')).toBeGreaterThanOrEqual(4.5); // the level name of tier 1 and a miss, drawn in grey
+    expect(ratio('#A8A8A8', '#0A0A0A')).toBeGreaterThanOrEqual(4.5);
   });
 
   it('has the tier colours of the brief and the black and orange palette', () => {
@@ -89,7 +89,7 @@ describe('contrast (WCAG: 4.5 to 1 for text)', () => {
       for (const m of code.matchAll(/box-shadow:([^;]+);/g)) {
         for (const shadow of m[1]!.split(/,(?![^(]*\))/)) {
           const lengths = shadow.replace(/var\([^)]*\)|calc\([^)]*\)/g, '1').match(/-?[\d.]+(?:px|rem)?/g) ?? [];
-          if (lengths.length >= 3) expect(Number.parseFloat(lengths[2]!), `${file}: ${shadow}`).toBe(0); // a hard offset: no blur radius
+          if (lengths.length >= 3) expect(Number.parseFloat(lengths[2]!), `${file}: ${shadow}`).toBe(0);
         }
       }
       for (const m of code.matchAll(/(?<!repeating-)linear-gradient\(/g)) expect(m.index, `${file}: a smooth gradient`).toBeNull();

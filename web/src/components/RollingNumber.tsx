@@ -9,7 +9,6 @@ interface Props {
   durationMs?: number;
   /** Show the value at once. */
   instant?: boolean;
-  /** How to write the number (default: as it is). */
   format?: (n: number) => string;
 }
 

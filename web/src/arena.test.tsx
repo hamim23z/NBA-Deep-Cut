@@ -2,6 +2,7 @@ import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AnimationsPage from './AnimationsPage';
+import { FLAVOR, TIER_CLASS, ballY, formatFeet } from './modes';
 import App from './App';
 import { divePrompts } from './schedule';
 import type { StorageLike } from './storage';
@@ -50,7 +51,7 @@ describe('the HUD', () => {
     const user = setup();
     await begin(user);
     expect(screen.getByRole('group', { name: 'Altitude' })).toBeInTheDocument();
-    expect(screen.getByTestId('hud-altitude')).toHaveTextContent('3,200'); // rare mode starts on the moon
+    expect(screen.getByTestId('hud-altitude')).toHaveTextContent('7,000');
     expect(screen.getByRole('group', { name: 'Prompt 1 of 7' })).toBeInTheDocument();
     expect(screen.getByText('PROMPT 1 OF 7')).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Score' })).toBeInTheDocument();
@@ -59,15 +60,15 @@ describe('the HUD', () => {
     expect(document.querySelectorAll('.pip')).toHaveLength(7);
   });
 
-  it('rolls the new points in after the ball has moved', async () => {
+  it('ticks the score and the altitude to their new values as the ball arrives', async () => {
     const user = setup();
     await begin(user);
     const first = dive()[0]!.answers[0]!;
     await answer(user, first.name);
     await screen.findByRole('heading', { level: 3, name: /points/ });
-    expect(screen.getByTestId('scoreboard-points')).toHaveTextContent('0'); // before the roll
     await act(async () => void vi.advanceTimersByTime(2500));
     expect(screen.getByTestId('scoreboard-points')).toHaveTextContent(String(first.points));
+    expect(screen.getByTestId('hud-altitude')).toHaveTextContent(formatFeet(7000 - first.points * 10));
   });
 
   it('colours a pip with the tier of the answer and puts its number in it', async () => {
@@ -81,10 +82,10 @@ describe('the HUD', () => {
 });
 
 const worldEl = (): Promise<HTMLElement> => screen.findByTestId('world');
-const letArm = () => act(async () => void vi.advanceTimersByTime(250)); // Enter counts only a moment after the result appears
+const letArm = () => act(async () => void vi.advanceTimersByTime(250));
 
 describe('the result card after an answer', () => {
-  it('moves the ball to the answer\'s level and shows the level, the pick, the answer, the points and a line about it', async () => {
+  it('moves the ball by the points and shows the tier class, the answer, the points and a line about it', async () => {
     const user = setup();
     await begin(user);
     const first = dive()[0]!.answers[0]!;
@@ -92,24 +93,40 @@ describe('the result card after an answer', () => {
     await screen.findByRole('heading', { level: 3, name: /points/ });
     const stage = await worldEl();
     await vi.waitFor(() => expect(stage).toHaveAttribute('data-phase', 'result'));
-    const levels = ['MOON', 'ORBIT', 'CLOUDS', 'ROOF', 'RAFTERS', 'RIM'];
-    expect(stage).toHaveAttribute('data-level', levels[first.tier - 1]);
+    expect(Number(stage.getAttribute('data-ball-y'))).toBeCloseTo(ballY('rare', first.points), 1);
     const card = document.querySelector('.result-card')!;
-    expect(within(card as HTMLElement).getByRole('heading', { level: 3 })).toHaveTextContent(levels[first.tier - 1]!);
-    expect(card.querySelector('.result-card__pick')?.textContent).toMatch(/ PICK$/);
+    expect(within(card as HTMLElement).getByRole('heading', { level: 3 })).toHaveTextContent(TIER_CLASS[first.tier - 1]!);
+    expect(card.querySelector('.result-card__pick')?.textContent).toBe('PICK');
     expect((card.querySelector('.result-card__answer') as HTMLInputElement).value).toBe(`"${first.name}"`);
-    expect(card.querySelector('.result-card__points')?.textContent).toContain(`+${first.points} PTS · sink to`);
-    expect(card.querySelector('.result-card__flavor')?.textContent?.length).toBeGreaterThan(10);
-    expect(stage).toHaveAttribute('aria-hidden', 'true'); // decoration: the card has every word
+    await act(async () => void vi.advanceTimersByTime(2000));
+    expect(card.querySelector('.result-card__points')?.textContent).toContain(`+${first.points} PTS · sink ${first.points * 10} ft`);
+    expect(card.querySelector('.result-card__flavor')?.textContent).toBe(FLAVOR.rare[first.tier - 1]);
+    expect(stage).toHaveAttribute('aria-hidden', 'true');
   });
 
-  it('says the result in a polite live line: the level, the points and the total', async () => {
+  it('starts the next prompt exactly where the ball stopped', async () => {
     const user = setup();
     await begin(user);
     const first = dive()[0]!.answers[0]!;
     await answer(user, first.name);
     await screen.findByRole('heading', { level: 3, name: /points/ });
-    expect(announcerText()).toMatch(new RegExp(`^(MOON|ORBIT|CLOUDS|ROOF|RAFTERS|RIM), ${first.points} points, ${first.points} total$`));
+    const stage = await worldEl();
+    const stopped = stage.getAttribute('data-ball-y');
+    await user.click(screen.getByRole('button', { name: /^(SINK|CLIMB) ▶$/ }));
+    await screen.findByRole('combobox');
+    expect(stage.getAttribute('data-ball-y')).toBe(stopped);
+    await answer(user, 'qwerty zxcv');
+    await screen.findByRole('heading', { level: 3, name: /0 points/ });
+    expect(stage.getAttribute('data-ball-y')).toBe(stopped);
+  });
+
+  it('says the result in a polite live line: the tier class, the points and the total', async () => {
+    const user = setup();
+    await begin(user);
+    const first = dive()[0]!.answers[0]!;
+    await answer(user, first.name);
+    await screen.findByRole('heading', { level: 3, name: /points/ });
+    expect(announcerText()).toBe(`${TIER_CLASS[first.tier - 1]} pick, ${first.points} points, ${first.points} total`);
     expect(screen.getByTestId('world-live')).toHaveAttribute('aria-live', 'polite');
   });
 
@@ -132,7 +149,7 @@ describe('the result card after an answer', () => {
     await begin(user);
     await answer(user, dive()[0]!.answers[0]!.name);
     await screen.findByRole('heading', { level: 3, name: /points/ });
-    expect(screen.queryByRole('combobox')).not.toBeInTheDocument(); // still on the result
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /^(SINK|CLIMB) ▶$/ }));
     expect(await screen.findByRole('combobox')).toHaveFocus();
   });
@@ -143,7 +160,8 @@ describe('the result card after an answer', () => {
     await answer(user, 'qwerty zxcv');
     await screen.findByRole('heading', { level: 3, name: /0 points/ });
     const stage = await worldEl();
-    expect(stage).toHaveAttribute('data-level', 'MOON'); // rare mode starts there and stays
+    expect(stage).toHaveAttribute('data-total', '0');
+    expect(Number(stage.getAttribute('data-ball-y'))).toBe(ballY('rare', 0));
     const card = document.querySelector('.result-card') as HTMLElement;
     expect(within(card).getByRole('heading', { level: 3 })).toHaveTextContent('AIRBALL');
     expect(card.querySelector('.result-card__points')?.textContent).toContain('+0 PTS');
@@ -233,7 +251,7 @@ describe('the results screen', () => {
     const total = await playWith(user, (p) => p.answers[0]!.name);
     const squares = within(screen.getByRole('list', { name: 'Your seven answers' })).getAllByRole('listitem');
     expect(squares).toHaveLength(7);
-    for (const s of squares) expect(s.querySelector('.square__tier')?.textContent).toMatch(/^([1-6]|×)$/); // the tier colour always comes with its number
+    for (const s of squares) expect(s.querySelector('.square__tier')?.textContent).toMatch(/^([1-6]|×)$/);
     expect(screen.getByRole('group', { name: `Total ${total} out of 700` })).toBeInTheDocument();
   });
 
@@ -290,14 +308,14 @@ describe('the sound toggle', () => {
 });
 
 describe('the animation review page', () => {
-  it('shows the ball moving to every level, one button for each, a mode switch and a reduced-motion version', async () => {
+  it('shows the ball moving for every tier, one button for each, a mode switch and a reduced-motion version', async () => {
     const user = setup();
     render(<AnimationsPage />);
     const stage = await screen.findByTestId('world');
-    for (const name of ['airball', 'moon', 'orbit', 'clouds', 'roof', 'rafters', 'rim']) expect(screen.getByTestId(`demo-${name}`)).toBeInTheDocument();
+    for (const name of ['airball', 'franchise', 'all-star', 'starter', 'rotation', 'bench', 'deep cut']) expect(screen.getByTestId(`demo-${name}`)).toBeInTheDocument();
     await user.click(screen.getByTestId('mode-common'));
-    await user.click(screen.getByTestId('demo-moon'));
-    await vi.waitFor(() => expect(stage).toHaveAttribute('data-level', 'MOON'));
+    await user.click(screen.getByTestId('demo-franchise'));
+    await vi.waitFor(() => expect(stage).toHaveAttribute('data-total', '100'));
     expect(stage).toHaveAttribute('data-mode', 'common');
     await user.click(screen.getByRole('checkbox', { name: /reduced-motion/i }));
     await vi.waitFor(() => expect(stage).toHaveClass('is-reduced'));

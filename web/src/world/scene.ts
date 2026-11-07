@@ -1,9 +1,4 @@
-/**
- * The moon world, drawn procedurally on a 360 x 215 grid of cells (no image files). Each function fills an RGBA buffer, so the
- * drawing is plain code that a test can read back; the canvas only shows the buffer, once, scaled with crisp edges.
- */
 export const GRID = { w: 360, h: 215 };
-/** The column the ball moves in, and the rows of the roof, the rim and the floor. */
 export const BALL_X = 132;
 export const ROOF_Y = 128;
 export const RIM_Y = 183;
@@ -28,7 +23,6 @@ export function hex(color: string): [number, number, number, number] {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255, 255];
 }
 
-/** A small seeded random generator, so the scene is the same every time. */
 export function rng(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
@@ -76,7 +70,6 @@ const mix = (a: string, b: string, t: number): string => {
   return `#${h(r1 + (r2 - r1) * t)}${h(g1 + (g2 - g1) * t)}${h(b1 + (b2 - b1) * t)}`;
 };
 
-/** A 3 x 5 pixel font for the digits on the banners. */
 export const DIGITS: Record<string, readonly string[]> = {
   '0': ['111', '101', '101', '101', '111'], '1': ['010', '110', '010', '010', '111'], '2': ['111', '001', '111', '100', '111'],
   '3': ['111', '001', '111', '001', '111'], '4': ['101', '101', '111', '001', '001'], '5': ['111', '100', '111', '001', '111'],
@@ -94,13 +87,12 @@ function digits(layer: Layer, text: string, x: number, y: number, color: string)
   });
 }
 
-/** Retired-number banners hang from the rafters across the width, except in the ball column. */
 export const BANNERS = { numbers: ['23', '8', '24', '33', '6', '32', '11', '21', '5', '12', '34', '7'], width: 15, top: 137, height: 20 };
 
 function bannerXs(): number[] {
   const xs: number[] = [];
   for (let x = 6; x + BANNERS.width < GRID.w; x += 28) {
-    if (x + BANNERS.width > BALL_X - 16 && x < BALL_X + 16) continue; // the ball column stays clear
+    if (x + BANNERS.width > BALL_X - 16 && x < BALL_X + 16) continue;
     xs.push(x);
   }
   return xs;
@@ -126,7 +118,6 @@ function drawMoon(l: Layer): void {
   }
 }
 
-/** The hoop on the moon: an orange rim under it and a small white net. */
 function drawMoonHoop(l: Layer): void {
   const y = MOON.y + MOON.r - 2;
   rect(l, MOON.x - 9, y, 18, 2, PALETTE.orange);
@@ -137,11 +128,9 @@ function drawMoonHoop(l: Layer): void {
   }
 }
 
-/** The static scene: sky, moon, roof, rafters, banners, crowd, floor and the arena hoop. */
 export function renderScene(): Layer {
   const l = newLayer();
   const rnd = rng(7);
-  // night sky: steps of warm black, dithered between the steps
   for (let y = 0; y < ROOF_Y + 8; y++) {
     const t = Math.min(1, y / ROOF_Y) * 7;
     for (let x = 0; x < GRID.w; x++) {
@@ -149,7 +138,6 @@ export function renderScene(): Layer {
       put(l, x, y, mix(PALETTE.skyTop, PALETTE.skyBottom, step / 7));
     }
   }
-  // stars
   const starColors = [PALETTE.cream, PALETTE.greyLight, PALETTE.grey, PALETTE.cream, PALETTE.amber, PALETTE.greyLight];
   for (let i = 0; i < 130; i++) {
     const x = Math.floor(rnd() * GRID.w);
@@ -167,12 +155,10 @@ export function renderScene(): Layer {
   drawMoon(l);
   drawMoonHoop(l);
 
-  // the arena interior: dark and warm, darker at the top
   for (let y = ROOF_Y + 8; y < FLOOR_Y; y++) {
     const t = (y - ROOF_Y - 8) / (FLOOR_Y - ROOF_Y - 8);
     for (let x = 0; x < GRID.w; x++) put(l, x, y, mix('#0C0807', '#1B100B', t * 0.9 + (bayer(x, y) - 0.5) * 0.12));
   }
-  // the crowd: a dithered texture of heads, denser toward the floor
   for (let y = 158; y < FLOOR_Y; y++) {
     const density = 0.14 + ((y - 158) / (FLOOR_Y - 158)) * 0.4;
     for (let x = 0; x < GRID.w; x++) {
@@ -183,7 +169,6 @@ export function renderScene(): Layer {
       }
     }
   }
-  // roof (with an opening above the ball column) and rafters
   for (let x = 0; x < GRID.w; x++) {
     if (Math.abs(x - BALL_X) < 13) continue;
     rect(l, x, ROOF_Y, 1, 4, '#2A1D18');
@@ -196,12 +181,11 @@ export function renderScene(): Layer {
     rect(l, x, ROOF_Y + 8, 3, 14, '#1F140F');
     put(l, x, ROOF_Y + 8, '#33241C');
   }
-  // retired-number banners hanging from the rafters
   bannerXs().forEach((x, i) => {
     const orange = i % 2 === 0;
     const body = orange ? PALETTE.orange : PALETTE.cream;
     const ink = orange ? '#1A0902' : '#1A0902';
-    rect(l, x + 7, BANNERS.top - 2, 1, 3, '#3A2A22'); // the cord
+    rect(l, x + 7, BANNERS.top - 2, 1, 3, '#3A2A22');
     for (let dy = 0; dy < BANNERS.height; dy++) {
       const notch = dy > BANNERS.height - 5 ? dy - (BANNERS.height - 5) : 0;
       const left = x + (dy > BANNERS.height - 5 ? notch : 0);
@@ -211,7 +195,6 @@ export function renderScene(): Layer {
     rect(l, x, BANNERS.top, BANNERS.width, 1, orange ? '#FF8A3D' : '#FFFFFF');
     digits(l, BANNERS.numbers[i % BANNERS.numbers.length] as string, x + 3, BANNERS.top + 4, ink);
   });
-  // the hardwood floor and its baseline
   for (let y = FLOOR_Y; y < GRID.h; y++) {
     for (let x = 0; x < GRID.w; x++) {
       const row = y - FLOOR_Y;
@@ -221,7 +204,6 @@ export function renderScene(): Layer {
     }
   }
   rect(l, 0, FLOOR_Y, GRID.w, 1, PALETTE.cream);
-  // the arena hoop at the ball column: stanchion, backboard, rim and net
   rect(l, BALL_X - 1, 178, 3, FLOOR_Y - 178, PALETTE.grey);
   rect(l, BALL_X - 7, FLOOR_Y - 3, 15, 3, '#4A4A4A');
   rect(l, BALL_X - 11, 163, 23, 15, PALETTE.cream);
@@ -237,7 +219,6 @@ export function renderScene(): Layer {
   return l;
 }
 
-/** The clouds, drawn twice side by side so that sliding them one grid width along loops without a seam. */
 export function renderClouds(): Layer {
   const l = newLayer(GRID.w * 2, GRID.h);
   const rnd = rng(21);
@@ -258,7 +239,6 @@ export function renderClouds(): Layer {
   return l;
 }
 
-/** A layer of stars that twinkle (the page fades the whole layer in and out). */
 export function renderStars(seed: number, count = 22): Layer {
   const l = newLayer();
   const rnd = rng(seed);
@@ -277,7 +257,6 @@ export function renderStars(seed: number, count = 22): Layer {
   return l;
 }
 
-/** Bright specks in the crowd; two layers fade in turn, so the stands shimmer. */
 export function renderCrowdShimmer(seed: number): Layer {
   const l = newLayer();
   const rnd = rng(seed);
@@ -290,24 +269,16 @@ export function renderCrowdShimmer(seed: number): Layer {
   return l;
 }
 
-/**
- * Where the grid sits on a screen. On a wide screen the scene fills it (a slice: the larger of the two scales), centred. On a phone
- * the sheet with the question covers the bottom, so the scene is sized to the part above it, with the ball column kept in view.
- */
 export interface Metrics {
   scale: number;
   ox: number;
   oy: number;
-  /** Phone layout: a bottom sheet instead of a floating card. */
   narrow: boolean;
-  /** Height of the part of the screen above the sheet (the whole height on a wide screen). */
   visible: number;
 }
 
 export const NARROW_MAX = 700;
-/** On a wide screen the moon's level line (row 24) stays at least this far from the top. */
 export const MOON_LINE_MIN = 70;
-/** On a phone the sheet with the question takes the bottom of the screen, and the HUD the top. */
 export const SHEET_SHARE = 0.46;
 export const HUD_NARROW = 96;
 
@@ -315,14 +286,12 @@ export function sceneMetrics(vw: number, vh: number): Metrics {
   const narrow = vw < NARROW_MAX;
   const visible = narrow ? Math.round(vh * (1 - SHEET_SHARE)) : vh;
   const top = narrow ? HUD_NARROW : 0;
-  const scale = Math.ceil(Math.max(vw / GRID.w, (visible - top) / GRID.h) * 100) / 100; // rounded up, so the grid always covers its space
+  const scale = Math.ceil(Math.max(vw / GRID.w, (visible - top) / GRID.h) * 100) / 100;
   const width = GRID.w * scale;
   const centred = (vw - width) / 2;
   const ox = narrow ? Math.min(0, Math.max(vw - width, vw * 0.3 - BALL_X * scale)) : centred;
-  // centred, but never so far up that the moon's level line runs under the HUD (the gauge row sits on it)
   const oy = narrow ? top : Math.min(0, Math.max((vh - GRID.h * scale) / 2, MOON_LINE_MIN - 24 * scale));
   return { scale, ox, oy, narrow, visible };
 }
 
-/** Screen position of a grid cell. */
 export const toScreen = (m: Metrics, gx: number, gy: number): { x: number; y: number } => ({ x: m.ox + gx * m.scale, y: m.oy + gy * m.scale });
